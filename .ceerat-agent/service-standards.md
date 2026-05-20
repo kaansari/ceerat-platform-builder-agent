@@ -11,6 +11,25 @@ This file gives the builder agent service-level rules for creating or modifying 
 
 The cookbook is part of the builder setup. When planning a new backend service, follow these standards first.
 
+## Service Inventory First
+
+Before planning a new backend service, protobuf package, or gRPC service, check:
+
+```text
+contracts-repo/docs/contract-inventory.json
+services-repo/docs/grpc-service-inventory.json
+```
+
+Use the inventory to answer:
+
+- Does this contract package, message, RPC, domain model, mapper, or security hook already exist?
+- Does this service boundary already exist?
+- Does an existing proto package already own this domain?
+- Is the requested work a new RPC on an existing service instead of a new service?
+- Which `KnownGRPCMethods`, `DefaultRolePermissions`, docs, tests, and admin hooks must be updated?
+
+If a new contract, service, or RPC is added, update the inventories in the same change. The inventories are intentionally simple JSON so humans and builder agents can read them before generating code.
+
 ## Core Rule
 
 Frontend apps, admin apps, customer apps, and AI agents must not write directly to the OLTP database. They call backend service APIs. Backend services own:

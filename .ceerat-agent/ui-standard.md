@@ -2,6 +2,23 @@
 
 Ceerat UIs are work-oriented operational tools. Plans should favor clear, repeatable workflows over marketing-style screens.
 
+## App Inventory First
+
+Before planning a new app route, page, template, static asset, chat surface, or AI HTTP endpoint, check:
+
+```text
+apps-repo/docs/app-surface-inventory.json
+```
+
+Use the inventory to answer:
+
+- Does this route or handler already exist?
+- Does this app already have the needed template or static asset area?
+- Is the requested chat behavior already owned by `ceerat-web-ui`, `ceerat-customer-ui`, or `ceerat-agent-service`?
+- Should the work extend an existing app surface instead of creating a duplicate?
+
+If a new app surface is added, update the inventory in the same change.
+
 ## UI Surfaces
 
 | UI | Purpose | Backend dependency |
@@ -65,4 +82,3 @@ Both must forward through `ceerat-web-ui` to `ceerat-agent-service`; neither sho
 Future AI summaries and recommendations belong in admin/executive surfaces. They should be based on structured BI events and insights, not raw logs.
 
 Plans should include review states such as new, reviewed, accepted, dismissed, and implemented when proposing AI insights.
-
