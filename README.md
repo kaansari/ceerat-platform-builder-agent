@@ -1,11 +1,26 @@
-# Ceerat Platform Builder Agent
+# Ceerat Service Builder Agent
 
-Developer CLI agent for planning Ceerat platform modules.
+Developer CLI agent for planning Ceerat backend service capabilities.
 
 This tool reads Ceerat architecture context from `.ceerat-agent/`, sends a module
 request to OpenAI, and prints a structured implementation plan. For now it only
 produces plans; it does not generate code, modify external repositories, or run
 git commands.
+
+The agent is intentionally scoped to backend service work:
+
+- protobuf/gRPC contracts
+- backend service handlers and repositories
+- PostgreSQL OLTP database objects and migrations
+- JWT/RBAC/security and ownership checks
+- admin HTTP hooks owned by services
+- structured logging and business events
+- infra/config impact for service processes
+
+It does not design frontend pages, templates, CSS, browser behavior, or AI chat UI.
+Frontend and UX work should be handled by a separate UI-focused agent. This service
+agent may still report integration impact for existing apps or AI tools when a
+service/API change requires follow-up coordination.
 
 ## Setup
 
@@ -37,8 +52,8 @@ The output includes:
 - required protos
 - required services
 - required database migrations
-- required UI pages
 - required RBAC permissions
-- required AI agent tools
+- required logging/events
+- integration impact
 - required tests
 - risks/questions

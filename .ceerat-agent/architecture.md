@@ -1,6 +1,33 @@
-# Ceerat Platform Architecture Context
+# Ceerat Service Architecture Context
 
-This file is loaded by the Ceerat Platform Builder Agent. It gives the agent the platform context it needs when planning new modules.
+This file is loaded by the Ceerat Service Builder Agent. It gives the agent the platform context it needs when planning backend service capabilities, contracts, security, RBAC, and database objects.
+
+## Builder Scope
+
+This builder agent is intentionally services-only.
+
+In scope:
+
+- Protobuf/gRPC contracts.
+- Shared contract domain DTOs and mappers.
+- Backend service handlers.
+- Repositories and database access.
+- PostgreSQL OLTP tables, indexes, constraints, seed data, and migrations.
+- JWT, RBAC, public method allowlists, admin-only hooks, and ownership checks.
+- Admin HTTP endpoints owned by backend services.
+- Structured logging, business events, and BI/event handoff.
+- Infra/config/log impact for service processes.
+
+Out of scope:
+
+- Frontend pages.
+- HTML templates.
+- CSS and browser JavaScript.
+- UX interaction design.
+- AI chat UI design.
+- OpenAI prompt/tool implementation, except when noting service/API compatibility impact.
+
+The builder may mention existing apps, AI tools, or infra only as integration impact. It should not plan frontend implementation.
 
 ## Workspace Shape
 
@@ -14,15 +41,11 @@ contracts-repo/
 ceerat-platform-builder-agent/
 ```
 
-Important Go modules:
+Important Go modules for service planning:
 
 ```text
 contracts-repo/packages/ceerat-contracts
 services-repo/services/ceerat-user-service
-apps-repo/ai/ceerat-agent-service
-apps-repo/apps/ceerat-admin-ui
-apps-repo/apps/ceerat-web-ui
-apps-repo/apps/ceerat-customer-ui
 ```
 
 Local cross-repo Go development should use a parent-level `go.work`. Missing workspace entries can make Go try to download local module paths instead of using sibling repositories.
@@ -63,12 +86,10 @@ Backend services
 | `infra` | Local stack start/stop, env wiring, process logs, PIDs, database startup | Apps, services, database |
 | `contracts-repo/packages/ceerat-contracts` | Protobuf contracts, generated clients/servers, domain DTOs, mappers, shared security hooks | No app/service/db dependency |
 | `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service catalog, orders, patients, RBAC, admin HTTP | Contracts, PostgreSQL |
-| `apps-repo/apps/ceerat-web-ui` | Authenticated web app, dashboard, orders, AI Agent panel, full-page `/chatgpt-client/` UI | User service, agent service |
-| `apps-repo/apps/ceerat-customer-ui` | Customer-facing self-service and customer registration | User service |
-| `apps-repo/apps/ceerat-admin-ui` | Admin users, roles, permissions, RBAC cache management | User service admin HTTP API |
-| `apps-repo/ai/ceerat-agent-service` | HTTP AI service using OpenAI tool calling and platform gRPC APIs | User service, OpenAI API |
 | PostgreSQL OLTP | Source of truth for transactional records | Owned by backend services |
 | Future BI database | Business events, rollups, AI insights, executive recommendations | Receives copied/evented data |
+
+Existing app and AI callers are documented in inventories for compatibility checks, but this builder does not design those surfaces.
 
 ## Dependency Rules
 
@@ -78,6 +99,7 @@ Backend services
 - Contracts must not depend on apps, services, GORM, repositories, or persistence.
 - Business intelligence should use a separate analytics database, not raw logs and not heavy OLTP queries.
 - Analytics writes must not block primary transactional workflows.
+- Service plans may include caller compatibility impact, but frontend implementation belongs to a separate UI agent.
 
 ## Core Service Boundary
 
@@ -143,26 +165,17 @@ Not allowed in contracts:
 - Service implementation logic.
 - App/UI behavior.
 
-## AI Chat Boundary
+## Caller Compatibility Boundary
 
-The active AI service is `apps-repo/ai/ceerat-agent-service`.
-
-Browser chat surfaces are served by `ceerat-web-ui`:
+The service builder should be aware that existing apps and AI tools call service APIs. Use these inventories for compatibility checks only:
 
 ```text
-Dashboard AI Agent panel -> POST /api/agent/chat
-Full-page chat UI        -> GET /chatgpt-client/
+apps-repo/docs/app-surface-inventory.json
+services-repo/docs/grpc-service-inventory.json
+contracts-repo/docs/contract-inventory.json
 ```
 
-Both surfaces forward authenticated requests to:
-
-```text
-ceerat-agent-service POST /agent/chat
-```
-
-The agent validates the Ceerat JWT, calls OpenAI with tool definitions, then executes approved gRPC calls against `ceerat-user-service`. It must not write directly to PostgreSQL.
-
-The old standalone `apps-repo/ai/ceerat-chatgpt-client` redirect helper is not part of the active architecture.
+When a service/API change affects callers, put that in `integration_impact`. Do not design frontend pages, app handlers, templates, JavaScript, AI prompts, or AI tools.
 
 ## Infra and Logs
 
@@ -197,4 +210,3 @@ Application action
 ```
 
 Module plans should identify business events when the module creates meaningful product behavior.
-

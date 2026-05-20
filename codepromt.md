@@ -1,4 +1,4 @@
-Create the initial Ceerat Platform Builder Agent project in Python.
+Create the initial Ceerat Service Builder Agent project in Python.
 
 This is a developer CLI agent, not part of the runtime Ceerat web app.
 
@@ -27,9 +27,8 @@ ceerat-platform-builder-agent/
   .ceerat-agent/
     architecture.md
     module-generation-standard.md
+    service-standards.md
     security-rbac-standard.md
-    ui-standard.md
-    ai-tool-standard.md
     prompts/
       system.md
       planner.md
@@ -76,8 +75,13 @@ The output should include:
 - required protos
 - required services
 - required database migrations
-- required UI pages
 - required RBAC permissions
-- required AI agent tools
+- required logging/events
+- integration impact
 - required tests
 - risks/questions
+
+The agent should focus on backend services only: contracts, service handlers,
+repositories, database objects, security/RBAC, logging/events, and service
+infra/config. It should not design frontend pages, templates, CSS, browser
+interactions, or AI chat UI.

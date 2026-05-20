@@ -1,21 +1,20 @@
 # Module Generation Standard
 
-The builder agent produces implementation plans only. It should not claim to generate code or change repositories.
+The service builder agent produces backend service implementation plans only. It should not claim to generate code or change repositories.
 
 ## Required Plan Content
 
-Every module plan must cover:
+Every services-only module plan must cover:
 
 - Module name and business purpose.
 - Business objects, relationships, ownership, and statuses.
 - Contract/protobuf changes.
 - Backend service ownership and implementation areas.
 - Database tables, indexes, constraints, seed data, and migration strategy.
-- UI surfaces and workflows.
 - Security, RBAC, public methods, and ownership checks.
-- AI tools and tool safety.
 - Logging and business events.
-- Infra/startup/config changes.
+- Infra/startup/config changes for backend services.
+- Integration impact for existing apps, AI tools, or callers without designing frontend or AI UI.
 - Tests.
 - Risks, missing decisions, and open questions.
 
@@ -27,14 +26,33 @@ business_objects
 required_protos
 required_services
 required_database_migrations
-required_ui_pages
 required_rbac_permissions
-required_ai_agent_tools
+required_logging_events
+integration_impact
 required_tests
 risks_questions
 ```
 
-Put logging, BI, infra, and ownership details into the closest matching field.
+Put service-owned admin HTTP hooks in `required_services`, database behavior in `required_database_migrations`, security behavior in `required_rbac_permissions`, logs/events in `required_logging_events`, and caller coordination in `integration_impact`.
+
+Do not include frontend implementation details in any field.
+
+## Inventory-First Recipe
+
+Before proposing new contracts, services, or database objects, check:
+
+```text
+contracts-repo/docs/contract-inventory.json
+services-repo/docs/grpc-service-inventory.json
+```
+
+For caller compatibility only, check:
+
+```text
+apps-repo/docs/app-surface-inventory.json
+```
+
+Use app/AI inventory only to identify follow-up integration impact. Do not plan UI pages, templates, CSS, browser JavaScript, or AI chat UI.
 
 ## Service Ownership Decision
 
@@ -165,3 +183,4 @@ For a new service or major module, plan updates to:
 - Architecture docs if dependencies change.
 - New service cookbook if a new pattern is introduced.
 
+Do not plan frontend documentation from this agent unless the only need is to note caller compatibility impact.

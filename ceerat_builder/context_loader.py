@@ -13,8 +13,6 @@ ARCHITECTURE_DOCS = [
     "module-generation-standard.md",
     "service-standards.md",
     "security-rbac-standard.md",
-    "ui-standard.md",
-    "ai-tool-standard.md",
 ]
 
 PROMPTS = [

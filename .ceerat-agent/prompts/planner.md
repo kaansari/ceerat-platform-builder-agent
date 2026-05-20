@@ -1,4 +1,4 @@
-Create a structured implementation plan for the requested Ceerat module.
+Create a structured services-only implementation plan for the requested Ceerat backend capability.
 
 Use the loaded `.ceerat-agent` context and current platform patterns.
 
@@ -9,11 +9,11 @@ The plan must include:
 - `required_protos`: protobuf messages, gRPC services/RPCs, full gRPC method names, contract/domain/mapper changes, and proto regeneration notes.
 - `required_services`: backend ownership decision, handlers, repositories, startup wiring, admin HTTP hooks if needed, logging, infra/startup/config changes.
 - `required_database_migrations`: OLTP tables, indexes, constraints, seed data, transactions, and separate BI/analytics tables if needed.
-- `required_ui_pages`: admin/web/customer UI pages, same-origin app endpoints, states, validation, permissions, and workflows.
 - `required_rbac_permissions`: exact gRPC methods for `KnownGRPCMethods`, default role permissions, public methods if any, admin-only requirements, and ownership checks.
-- `required_ai_agent_tools`: read/mutation tools, schemas, backend APIs used, permission checks, business events, and audit behavior.
-- `required_tests`: contract, service, repository, security/RBAC, ownership, admin API, UI, AI tool, logging/event, and infra tests.
-- `risks_questions`: missing product decisions, ambiguous ownership, migration risks, security concerns, UI uncertainties, BI/event open questions.
+- `required_logging_events`: structured service logs, business events, BI event handoff, redaction rules, and operational observability.
+- `integration_impact`: existing app routes, AI tools, infra startup, logs, or callers that may need follow-up work by another agent; do not design frontend UI here.
+- `required_tests`: contract, service, repository, security/RBAC, ownership, admin API, logging/event, migration, and infra/config tests.
+- `risks_questions`: missing product decisions, ambiguous ownership, migration risks, security concerns, caller compatibility, BI/event open questions.
 
 Planning rules:
 
@@ -21,11 +21,14 @@ Planning rules:
 - Do not modify external repositories.
 - Do not run git commands.
 - Do not propose direct app or agent database writes.
+- Do not design frontend pages, templates, CSS, browser behavior, or AI chat UI.
+- Do not add UI implementation details to any field.
 - Do not put persistence details in contracts.
 - Keep public APIs minimal.
 - Keep customer-owned data scoped to authenticated user identity.
 - Include infra/log/config changes when a new process, port, environment variable, or log file is needed.
 - Include BI/intelligence events for meaningful business behavior, using a separate analytics store rather than raw logs.
+- Check `contracts-repo/docs/contract-inventory.json` and `services-repo/docs/grpc-service-inventory.json` before proposing new contracts or service boundaries.
+- Check `apps-repo/docs/app-surface-inventory.json` only for integration impact and caller compatibility, not for UI design.
 
-Produce a plan that a developer could implement in a follow-up step.
-
+Produce a services-focused plan that a backend developer could implement in a follow-up step.

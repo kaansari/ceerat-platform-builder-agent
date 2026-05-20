@@ -44,9 +44,9 @@ def render_plan(plan: ImplementationPlan) -> None:
     _add_rows(table, "Required protos", plan.required_protos)
     _add_rows(table, "Required services", plan.required_services)
     _add_rows(table, "Database migrations", plan.required_database_migrations)
-    _add_rows(table, "UI pages", plan.required_ui_pages)
     _add_rows(table, "RBAC permissions", plan.required_rbac_permissions)
-    _add_rows(table, "AI agent tools", plan.required_ai_agent_tools)
+    _add_rows(table, "Logging/events", plan.required_logging_events)
+    _add_rows(table, "Integration impact", plan.integration_impact)
     _add_rows(table, "Tests", plan.required_tests)
     _add_rows(table, "Risks/questions", plan.risks_questions)
 
