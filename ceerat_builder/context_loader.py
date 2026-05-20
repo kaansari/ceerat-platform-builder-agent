@@ -11,6 +11,7 @@ class ContextError(RuntimeError):
 ARCHITECTURE_DOCS = [
     "architecture.md",
     "module-generation-standard.md",
+    "service-standards.md",
     "security-rbac-standard.md",
     "ui-standard.md",
     "ai-tool-standard.md",
