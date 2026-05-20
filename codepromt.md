@@ -47,6 +47,15 @@ The command should:
 5. Send the user request plus Ceerat context to OpenAI
 6. Print a structured implementation plan using Rich
 
+Also support tool-friendly commands:
+
+- `ceerat-builder plan --output json "<request>"`
+- `ceerat-builder plan --output json --output-file <path> "<request>"`
+- `ceerat-builder schema`
+- `ceerat-builder check-context`
+- `ceerat-builder inventory`
+- `ceerat-builder inventory --output json`
+
 For now:
 - do not generate code
 - do not modify external repos
