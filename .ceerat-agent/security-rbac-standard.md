@@ -1,8 +1,147 @@
 # Security and RBAC Standard
 
-New modules must use least-privilege RBAC. Plans should name permissions using a
-stable module action pattern such as `invoice.read`, `invoice.create`,
-`invoice.update`, `invoice.delete`, and `invoice.approve`.
+Backend services are the security boundary. Apps and AI agents call backend APIs; they do not write directly to the OLTP database.
 
-Sensitive actions need separate permissions from read-only access. Mutating AI
-agent tools must require explicit permissions and should be auditable.
+## gRPC Security Flow
+
+Protected gRPC calls flow through:
+
+```text
+JWT interceptor
+  -> RBAC interceptor
+  -> logging interceptor
+  -> handler ownership checks
+  -> repository scoped query/write
+```
+
+Use RBAC for:
+
+```text
+Can this role call this method?
+```
+
+Use handler/repository checks for:
+
+```text
+Can this user access this record?
+```
+
+## Shared Security Hooks
+
+Use these shared hooks from `contracts-repo/packages/ceerat-contracts/security`:
+
+| Hook | Purpose |
+| --- | --- |
+| `DefaultPublicMethods` | Exact methods that bypass JWT/RBAC. |
+| `KnownGRPCMethods` | Methods admin/RBAC tooling can assign permissions for. |
+| `DefaultRolePermissions` | Seed permissions for default roles. |
+| `NewJWTInterceptor` | Validates token and injects authenticated user context. |
+| `NewRBACInterceptor` | Checks role permission for the current gRPC method. |
+| `AuthenticatedUserFromContext` | Handler hook to read authenticated user identity. |
+| `WithAuthenticatedUser` | Test helper to attach identity to context. |
+
+## JWT Rules
+
+Protected calls must send:
+
+```text
+authorization: Bearer <jwt>
+```
+
+Also accepted:
+
+```text
+x-auth-token: <jwt>
+```
+
+JWT values must never be logged. JWT claims should exclude passwords and token fields.
+
+## Public Method Rules
+
+Public methods must be rare. Good candidates:
+
+- Login.
+- Registration.
+- Token validation.
+- Health check.
+
+Bad public candidates:
+
+- List data.
+- Mutate business records.
+- Admin operations.
+- AI tool execution.
+
+When a plan adds a public method, it must explain why and list the exact full method name.
+
+## RBAC Method Rules
+
+RBAC uses exact gRPC method names:
+
+```text
+/package.Service/Method
+```
+
+Plans must add new protected methods to:
+
+```text
+security.KnownGRPCMethods
+security.DefaultRolePermissions
+```
+
+Default role pattern:
+
+- `admin`: usually wildcard `*`.
+- `agent`: operational methods required for internal work.
+- `customer`: self-service methods only.
+
+## Ownership Rules
+
+Customer-owned data must be scoped to the authenticated user.
+
+Examples:
+
+- Customer can only read/update its own user profile.
+- Customer cannot list all customers.
+- Customer profile access checks `customers.user_id`.
+- Customer service assignments are filtered or denied by owner.
+- Order reads and writes are scoped by authenticated user id.
+
+Handler pattern:
+
+```go
+authUser, ok := security.AuthenticatedUserFromContext(ctx)
+if !ok {
+    return nil, status.Error(codes.Unauthenticated, "authentication required")
+}
+```
+
+Repository pattern:
+
+```text
+WHERE id = ? AND user_id = ?
+```
+
+## Admin HTTP Rules
+
+Admin HTTP APIs must:
+
+1. Read `Authorization: Bearer <jwt>` or `X-Auth-Token`.
+2. Validate token.
+3. Load current user.
+4. Require `role == "admin"`.
+5. Apply operation.
+6. Refresh affected in-memory caches.
+7. Return JSON.
+
+Admin APIs should set:
+
+```text
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+```
+
+## Test Requirements
+
+Plans must include tests for missing token, invalid token, RBAC denied, RBAC allowed, ownership denied, ownership allowed, admin-only routes, and AI tool permission behavior when tools are involved.
+
