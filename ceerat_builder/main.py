@@ -11,7 +11,20 @@ from rich.table import Table
 
 from ceerat_builder.config import ConfigError, load_ai_settings
 from ceerat_builder.context_loader import ContextError, load_agent_context
-from ceerat_builder.models import ImplementationPlan
+from ceerat_builder.models import (
+    DomainRequirement,
+    ImplementationPlan,
+    InventoryMatch,
+    PlanningPacket,
+    RecommendedOwner,
+    RelatedContract,
+    SourceEvidence,
+    SuggestedContract,
+    SuggestedDatabaseObject,
+    SuggestedRBACPermission,
+    SuggestedRPC,
+    SuggestedServiceSkeleton,
+)
 from ceerat_builder.openai_client import CeeratOpenAIClient, OpenAIClientError
 from ceerat_builder.planner import build_ai_plan
 
@@ -32,6 +45,10 @@ def _add_rows(table: Table, title: str, values: List[str]) -> None:
 
 def _plan_json(plan: ImplementationPlan) -> str:
     return plan.model_dump_json(indent=2)
+
+
+def _packet_json(packet: PlanningPacket) -> str:
+    return packet.model_dump_json(indent=2)
 
 
 def _write_output(payload: str, output_file: Optional[Path]) -> None:
@@ -69,6 +86,42 @@ def render_plan(plan: ImplementationPlan) -> None:
     console.print(table)
 
 
+def render_packet(packet: PlanningPacket) -> None:
+    console.print(
+        Panel.fit(
+            f"[bold]{packet.request}[/bold]",
+            title="Ceerat Planning Packet",
+            border_style="green",
+        )
+    )
+
+    table = Table(show_header=True, header_style="bold green")
+    table.add_column("Area", style="bold", no_wrap=True)
+    table.add_column("Packet")
+
+    _add_rows(table, "Codex task", [packet.codex_task])
+    _add_rows(table, "Detected domain", [packet.detected_domain])
+    _add_rows(table, "Recommended owner", [f"{packet.recommended_owner.service_project}: {packet.recommended_owner.reason}"])
+    _add_rows(table, "Inventory matches", [f"{m.source}: {m.name} ({m.reason})" for m in packet.inventory_matches])
+    _add_rows(table, "Related contracts", [f"{c.service}: {', '.join(c.rpcs)}" for c in packet.related_contracts])
+    _add_rows(table, "Domain requirements", [f"{r.category}: {r.requirement}" for r in packet.domain_requirements])
+    _add_rows(table, "Source evidence", [f"{e.category}: {e.path} ({e.finding})" for e in packet.source_evidence])
+    _add_rows(table, "Suggested contract", [f"{packet.suggested_contract.package}.{packet.suggested_contract.service}"])
+    _add_rows(table, "Suggested DB", [obj.name for obj in packet.suggested_database_objects])
+    _add_rows(table, "Suggested service", packet.suggested_service_skeleton.files)
+    _add_rows(table, "Suggested RBAC", [perm.method for perm in packet.suggested_rbac_permissions])
+    _add_rows(table, "Relevant contracts", packet.relevant_contracts)
+    _add_rows(table, "Relevant services", packet.relevant_services)
+    _add_rows(table, "Database", packet.relevant_database)
+    _add_rows(table, "Security", packet.relevant_security)
+    _add_rows(table, "Apps/callers", packet.relevant_apps_or_callers)
+    _add_rows(table, "Standards", packet.standards_to_apply)
+    _add_rows(table, "Codex output", packet.required_output_from_codex)
+    _add_rows(table, "Warnings", packet.warnings)
+
+    console.print(table)
+
+
 def _words(value: str) -> List[str]:
     cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in value)
     return [word for word in cleaned.split() if word]
@@ -77,16 +130,51 @@ def _words(value: str) -> List[str]:
 def _request_terms(value: str) -> List[str]:
     ignored = {
         "a",
+        "add",
         "an",
         "and",
+        "based",
+        "belongs",
+        "bills",
         "build",
+        "can",
+        "constraint",
         "create",
+        "delete",
+        "do",
+        "does",
+        "expose",
+        "field",
+        "fields",
         "for",
+        "foreign",
+        "get",
+        "has",
+        "have",
+        "identify",
+        "implementation",
+        "index",
+        "it",
+        "its",
+        "key",
+        "list",
+        "many",
         "me",
+        "message",
+        "messages",
         "module",
+        "must",
         "new",
+        "not",
+        "one",
+        "record",
+        "records",
         "service",
         "the",
+        "to",
+        "unique",
+        "update",
+        "use",
         "with",
     }
     return [word for word in _words(value) if word not in ignored]
@@ -97,6 +185,11 @@ def _domain_name(request: str) -> str:
     if not words:
         return "Requested"
     return " ".join(word.capitalize() for word in words[:3])
+
+
+def _domain_key(request: str) -> str:
+    terms = _request_terms(request)
+    return terms[0] if terms else "requested"
 
 
 def _matching_contracts(inventories: Dict[str, Any], request: str) -> List[str]:
@@ -127,94 +220,509 @@ def _matching_services(inventories: Dict[str, Any], request: str) -> List[str]:
     return matches
 
 
-def _local_plan(request: str, project_root: Path) -> ImplementationPlan:
-    # Loading context here validates the builder setup even though the local planner
-    # does not send that context to an external model.
+def _contract_matches(inventories: Dict[str, Any], request: str) -> List[InventoryMatch]:
+    request_words = set(_request_terms(request))
+    matches: List[InventoryMatch] = []
+    for package in inventories["contracts"].get("proto_packages", []):
+        service = package.get("service", {})
+        haystack = set(_words(" ".join([
+            package.get("package", ""),
+            service.get("full_service", ""),
+            service.get("domain", ""),
+            " ".join(msg.get("name", "") for msg in package.get("messages", [])),
+        ])))
+        shared = sorted(request_words & haystack)
+        if shared:
+            matches.append(InventoryMatch(
+                source="contracts",
+                name=service.get("full_service", package.get("package", "")),
+                path=package.get("proto_path", ""),
+                reason="matched request terms: " + ", ".join(shared),
+            ))
+    return matches
+
+
+def _service_matches(inventories: Dict[str, Any], request: str) -> List[InventoryMatch]:
+    request_words = set(_request_terms(request))
+    matches: List[InventoryMatch] = []
+    for service in inventories["services"].get("grpc_services", []):
+        haystack = set(_words(" ".join([
+            service.get("full_service", ""),
+            service.get("domain", ""),
+            service.get("owner_project", ""),
+            " ".join(method.get("name", "") for method in service.get("methods", [])),
+        ])))
+        shared = sorted(request_words & haystack)
+        if shared:
+            matches.append(InventoryMatch(
+                source="services",
+                name=service.get("full_service", ""),
+                path=service.get("implementation_package", service.get("proto_path", "")),
+                reason="matched request terms: " + ", ".join(shared),
+            ))
+    return matches
+
+
+def _app_matches(inventories: Dict[str, Any], request: str) -> List[InventoryMatch]:
+    request_words = set(_request_terms(request))
+    matches: List[InventoryMatch] = []
+    for app_item in inventories["apps"].get("browser_apps", []) + inventories["apps"].get("ai_apps", []):
+        haystack = set(_words(" ".join([
+            app_item.get("name", ""),
+            app_item.get("type", ""),
+            " ".join(handler.get("route", "") for handler in app_item.get("handlers", [])),
+            " ".join(app_item.get("tools", [])),
+        ])))
+        shared = sorted(request_words & haystack)
+        if shared:
+            matches.append(InventoryMatch(
+                source="apps",
+                name=app_item.get("name", ""),
+                path=app_item.get("path", ""),
+                reason="caller compatibility match on terms: " + ", ".join(shared),
+            ))
+    return matches
+
+
+def _related_domain_terms(request: str, requirements: List[DomainRequirement]) -> List[str]:
+    terms = set(_request_terms(request))
+    for requirement in requirements:
+        terms.update(_request_terms(requirement.requirement))
+        terms.update(_request_terms(requirement.implementation_hint))
+        if requirement.name:
+            terms.update(_request_terms(requirement.name))
+    return sorted(terms)
+
+
+def _find_contract_package(inventories: Dict[str, Any], package_name: str) -> Optional[Dict[str, Any]]:
+    for package in inventories["contracts"].get("proto_packages", []):
+        if package.get("package") == package_name:
+            return package
+    return None
+
+
+def _related_contracts(inventories: Dict[str, Any], request: str, requirements: List[DomainRequirement]) -> List[RelatedContract]:
+    related_terms = set(_related_domain_terms(request, requirements))
+    contracts: List[RelatedContract] = []
+    for package in inventories["contracts"].get("proto_packages", []):
+        service = package.get("service", {})
+        package_name = package.get("package", "")
+        haystack = set(_words(" ".join([
+            package_name,
+            service.get("full_service", ""),
+            service.get("domain", ""),
+            " ".join(msg.get("name", "") for msg in package.get("messages", [])),
+            " ".join(rpc.get("name", "") for rpc in service.get("rpcs", [])),
+        ])))
+        shared = sorted(related_terms & haystack)
+        if shared:
+            reason = "related terms: " + ", ".join(shared)
+        else:
+            reason = ""
+        if reason:
+            contracts.append(RelatedContract(
+                package=package_name,
+                service=service.get("full_service", ""),
+                proto_path=package.get("proto_path", ""),
+                domain=service.get("domain", ""),
+                rpcs=[rpc.get("name", "") for rpc in service.get("rpcs", [])],
+                messages=[msg.get("name", "") for msg in package.get("messages", [])],
+                reason=reason,
+            ))
+    return contracts
+
+
+def _recommended_owner(domain: str, related_contracts: List[RelatedContract]) -> RecommendedOwner:
+    if related_contracts:
+        return RecommendedOwner(
+            service_project="ceerat-user-service",
+            path="services-repo/services/ceerat-user-service",
+            recommendation="extend_existing_service",
+            reason="Related contracts are currently implemented by ceerat-user-service.",
+        )
+    return RecommendedOwner(
+        service_project="new-service-or-ceerat-user-service-module",
+        path="services-repo/services",
+        recommendation="requires_codex_decision",
+        reason="No strong inventory owner was found. Codex should decide whether to create a new service or extend ceerat-user-service.",
+    )
+
+
+def _pascal(value: str) -> str:
+    return "".join(part.capitalize() for part in value.replace("-", "_").split("_") if part)
+
+
+def _suggested_contract(domain: str) -> SuggestedContract:
+    pascal = _pascal(domain)
+    package = domain.replace("-", "_")
+    rpcs = [
+        SuggestedRPC(name=f"Create{pascal}", full_method=f"/{package}.{pascal}Manager/Create{pascal}", request=f"Create{pascal}Request", response=f"{pascal}Response", purpose=f"Create a {domain} record."),
+        SuggestedRPC(name=f"Get{pascal}", full_method=f"/{package}.{pascal}Manager/Get{pascal}", request=f"Get{pascal}Request", response=f"{pascal}Response", purpose=f"Get one {domain} record."),
+        SuggestedRPC(name=f"List{pascal}s", full_method=f"/{package}.{pascal}Manager/List{pascal}s", request=f"List{pascal}sRequest", response=f"List{pascal}sResponse", purpose=f"List {domain} records."),
+        SuggestedRPC(name=f"Update{pascal}", full_method=f"/{package}.{pascal}Manager/Update{pascal}", request=f"Update{pascal}Request", response=f"{pascal}Response", purpose=f"Update a {domain} record."),
+    ]
+    messages = [
+        pascal,
+        f"Create{pascal}Request",
+        f"Get{pascal}Request",
+        f"List{pascal}sRequest",
+        f"Update{pascal}Request",
+        f"{pascal}Response",
+        f"List{pascal}sResponse",
+        "Error",
+    ]
+    return SuggestedContract(
+        package=package,
+        service=f"{pascal}Manager",
+        proto_path=f"packages/ceerat-contracts/proto/{package}/{package}.proto",
+        rpcs=rpcs,
+        messages=messages,
+    )
+
+
+def _suggested_database_objects(domain: str, requirements: List[DomainRequirement]) -> List[SuggestedDatabaseObject]:
+    table = f"{domain}s"
+    field_names = [requirement.name for requirement in requirements if requirement.category == "field" and requirement.name]
+    relationship_hints = [
+        requirement.implementation_hint or requirement.requirement
+        for requirement in requirements
+        if requirement.category == "relationship"
+    ]
+    key_columns = ["id"] + field_names + ["created_at", "updated_at"]
+    indexes = [f"index({field})" for field in field_names if field.endswith("_id")]
+    if not indexes:
+        indexes = ["add indexes based on repository query filters"]
+    return [
+        SuggestedDatabaseObject(
+            name=table,
+            purpose=f"{domain.capitalize()} records based on explicit requirements and existing service patterns.",
+            key_columns=key_columns,
+            relationships=relationship_hints,
+            indexes=indexes,
+        )
+    ]
+
+
+def _suggested_service_skeleton(domain: str, owner: RecommendedOwner) -> SuggestedServiceSkeleton:
+    package = domain.replace("-", "_")
+    if owner.recommendation == "extend_existing_service":
+        base = "services-repo/services/ceerat-user-service"
+        service_package = package + "s"
+        return SuggestedServiceSkeleton(
+            owner_project=owner.service_project,
+            packages=[f"{base}/{service_package}", f"{base}/internal/models"],
+            files=[
+                f"{base}/{service_package}/handler.go",
+                f"{base}/{service_package}/repository.go",
+                f"{base}/{service_package}/handler_test.go",
+                f"{base}/internal/models/models.go",
+                f"{base}/main.go",
+                "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            ],
+            startup_wiring=[
+                f"Create {domain} repository after DB/migrations.",
+                f"Register generated { _pascal(domain) }Manager gRPC server.",
+                f"Ensure JWT/RBAC/logging interceptors protect {domain} RPCs.",
+                "Enable reflection as existing service already does.",
+            ],
+        )
+    return SuggestedServiceSkeleton(
+        owner_project=owner.service_project,
+        packages=[f"services-repo/services/ceerat-{package}-service"],
+        files=[
+            f"services-repo/services/ceerat-{package}-service/main.go",
+            f"services-repo/services/ceerat-{package}-service/{package}s/handler.go",
+            f"services-repo/services/ceerat-{package}-service/{package}s/repository.go",
+            f"services-repo/services/ceerat-{package}-service/internal/models/models.go",
+        ],
+        startup_wiring=[
+            "Create service config/env loader.",
+            "Connect to PostgreSQL.",
+            "Wire JWT/RBAC/logging interceptors.",
+            "Register generated gRPC server and reflection.",
+            "Add infra start/stop/log integration.",
+        ],
+    )
+
+
+def _suggested_rbac(contract: SuggestedContract, domain: str) -> List[SuggestedRBACPermission]:
+    permissions: List[SuggestedRBACPermission] = []
+    for rpc in contract.rpcs:
+        is_read = rpc.name.startswith("Get") or rpc.name.startswith("List")
+        roles = ["admin", "agent"]
+        if is_read:
+            roles.append("customer")
+        permissions.append(SuggestedRBACPermission(
+            method=rpc.full_method,
+            default_roles=roles,
+            public=False,
+            ownership_rule="Scope customer/user-owned records through authenticated user before returning or mutating records. Apply domain requirements for relationship-specific ownership.",
+        ))
+    return permissions
+
+
+def _default_requirements_path(project_root: Path) -> Path:
+    return project_root / ".ceerat-agent" / "domain-requirements.json"
+
+
+def _load_domain_requirements(path: Optional[Path]) -> Dict[str, Any]:
+    if path is None or not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _configured_domain_requirements(domain: str, path: Optional[Path]) -> List[DomainRequirement]:
+    data = _load_domain_requirements(path)
+    domain_data = data.get("domains", {}).get(domain, {})
+    requirements: List[DomainRequirement] = []
+
+    for item in domain_data.get("must_have_fields", []):
+        requirements.append(DomainRequirement(
+            source=str(path),
+            category="field",
+            name=item.get("name"),
+            requirement=item.get("requirement", item.get("name", "")),
+            implementation_hint=item.get("implementation_hint", ""),
+        ))
+    for item in domain_data.get("must_have_relationships", []):
+        requirements.append(DomainRequirement(
+            source=str(path),
+            category="relationship",
+            name=item.get("name"),
+            requirement=item.get("requirement", item.get("name", "")),
+            implementation_hint=item.get("implementation_hint", ""),
+        ))
+    for item in domain_data.get("business_rules", []):
+        requirements.append(DomainRequirement(
+            source=str(path),
+            category="rule",
+            name=item.get("name"),
+            requirement=item.get("requirement", ""),
+            implementation_hint=item.get("implementation_hint", ""),
+        ))
+    for item in domain_data.get("workflow_rules", []):
+        requirements.append(DomainRequirement(
+            source=str(path),
+            category="workflow",
+            name=item.get("name"),
+            requirement=item.get("requirement", ""),
+            implementation_hint=item.get("implementation_hint", ""),
+        ))
+
+    return requirements
+
+
+def _request_domain_requirements(domain: str, request: str) -> List[DomainRequirement]:
+    return []
+
+
+def _domain_requirements(domain: str, request: str, requirements_path: Optional[Path]) -> List[DomainRequirement]:
+    configured = _configured_domain_requirements(domain, requirements_path)
+    requested = _request_domain_requirements(domain, request)
+    seen = set()
+    merged: List[DomainRequirement] = []
+    for requirement in configured + requested:
+        key = (requirement.category, requirement.requirement.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(requirement)
+    return merged
+
+
+def _source_file_exists(workspace: Path, relative_path: str) -> bool:
+    return (workspace / relative_path).is_file()
+
+
+def _source_evidence(project_root: Path, owner: RecommendedOwner, related_contracts: List[RelatedContract]) -> List[SourceEvidence]:
+    workspace = _workspace_root(project_root)
+    evidence: List[SourceEvidence] = []
+
+    service_main = "services-repo/services/ceerat-user-service/main.go"
+    if owner.service_project == "ceerat-user-service" and _source_file_exists(workspace, service_main):
+        evidence.append(SourceEvidence(
+            category="service_wiring",
+            path=service_main,
+            symbols=[
+                "createConnection",
+                "db.AutoMigrate",
+                "seedRBAC",
+                "grpc.NewServer",
+                "RegisterAuthServer",
+                "RegisterCustomerServiceServer",
+                "RegisterServiceManagerServer",
+                "RegisterOrderManagerServer",
+                "reflection.Register",
+            ],
+            finding=(
+                "ceerat-user-service owns DB connection, AutoMigrate, seed hooks, repository construction, "
+                "gRPC server creation, generated server registration, and reflection."
+            ),
+        ))
+        evidence.append(SourceEvidence(
+            category="security_wiring",
+            path=service_main,
+            symbols=[
+                "security.NewJWTInterceptor",
+                "security.NewRBACInterceptor",
+                "grpcLoggingInterceptor",
+                "grpc.ChainUnaryInterceptor",
+                "startRBACRefresh",
+                "startAdminHTTPServer",
+            ],
+            finding=(
+                "When JWT auth is enabled, unary interceptors are chained as JWT, RBAC, then logging; "
+                "RBAC cache refresh and service admin HTTP hooks are started from main."
+            ),
+        ))
+
+    for relative_path, symbols, finding in [
+        (
+            "services-repo/services/ceerat-user-service/orders/handler.go",
+            ["NewService", "CreateOrder", "GetOrder", "ListOrders", "UpdateOrderStatus"],
+            "Existing domain modules use a package-level service/handler around a repository and generated protobuf server interface.",
+        ),
+        (
+            "services-repo/services/ceerat-user-service/orders/repository.go",
+            ["NewRepository", "CreateOrder", "GetOrder", "ListOrders", "UpdateOrderStatus"],
+            "Order persistence is repository-owned and is the closest existing pattern for order-adjacent ownership, transactions, and line items.",
+        ),
+        (
+            "services-repo/services/ceerat-user-service/orders/handler_test.go",
+            ["Test", "bufconn", "metadata"],
+            "Existing handler tests are the closest test pattern for new order-adjacent gRPC behavior.",
+        ),
+        (
+            "services-repo/services/ceerat-user-service/internal/models/models.go",
+            ["UserEntity", "CustomerEntity", "ServiceEntity", "OrderEntity", "OrderServiceEntity"],
+            "GORM entities live in internal/models and are migrated from ceerat-user-service main.",
+        ),
+        (
+            "services-repo/services/ceerat-user-service/logging.go",
+            ["grpcLoggingInterceptor", "status.Code", "peer.FromContext"],
+            "Structured gRPC logs are centralized in the service logging interceptor.",
+        ),
+        (
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            ["KnownGRPCMethods", "DefaultRolePermissions"],
+            "New protected gRPC methods must be added to known methods and default role permissions.",
+        ),
+        (
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go",
+            ["DefaultPublicMethods"],
+            "Public methods are controlled separately and should stay minimal.",
+        ),
+        (
+            "services-repo/services/ceerat-user-service/docs/new-service-cookbook.md",
+            ["service cookbook"],
+            "The service cookbook is the documented implementation pattern for new service modules.",
+        ),
+    ]:
+        if _source_file_exists(workspace, relative_path):
+            evidence.append(SourceEvidence(category="source_pattern", path=relative_path, symbols=symbols, finding=finding))
+
+    for contract in related_contracts:
+        if contract.proto_path:
+            evidence.append(SourceEvidence(
+                category="contract_inventory",
+                path=contract.proto_path,
+                symbols=[contract.service] + contract.rpcs,
+                finding=f"Related contract from inventory: {contract.domain}",
+            ))
+
+    return evidence
+
+
+def _local_packet(request: str, project_root: Path, requirements_file: Optional[Path] = None) -> PlanningPacket:
     load_agent_context(project_root)
     inventories = _load_inventories(project_root)
-    domain = _domain_name(request)
-    module_name = f"{domain} Service"
-    contract_matches = _matching_contracts(inventories, request)
-    service_matches = _matching_services(inventories, request)
+    domain = _domain_key(request)
+    matches = (
+        _contract_matches(inventories, request)
+        + _service_matches(inventories, request)
+        + _app_matches(inventories, request)
+    )
+    resolved_requirements_file = requirements_file or _default_requirements_path(project_root)
+    requirements = _domain_requirements(domain, request, resolved_requirements_file)
+    related_contracts = _related_contracts(inventories, request, requirements)
+    owner = _recommended_owner(domain, related_contracts)
+    suggested_contract = _suggested_contract(domain)
 
-    if contract_matches or service_matches:
-        ownership_note = (
-            "Inventory match found: "
-            + ", ".join(sorted(set(contract_matches + service_matches)))
-            + ". Codex should extend the existing owner when the requested behavior belongs there."
-        )
-    else:
-        ownership_note = (
-            "No direct inventory match found. Codex should decide whether this is a new service boundary "
-            "or a new module inside ceerat-user-service before writing code."
-        )
-
-    proto_package = domain.lower().replace(" ", "_").replace("-", "_")
-    method_prefix = "".join(part.capitalize() for part in proto_package.split("_"))
-
-    return ImplementationPlan(
-        module_name=module_name,
-        business_objects=[
-            f"User request: {request}",
-            ownership_note,
-            "Codex must identify core domain objects, relationships, ownership, lifecycle statuses, and business events before implementation.",
-            "Customer-owned or user-owned data must be scoped to the authenticated user in handlers and repositories.",
+    return PlanningPacket(
+        request=request,
+        mode="local",
+        codex_task=(
+            "Use this packet as context. Produce the actual service implementation plan or make code changes "
+            "using Codex reasoning. Do not treat this packet as the final design."
+        ),
+        detected_domain=domain,
+        recommended_owner=owner,
+        inventory_matches=matches,
+        related_contracts=related_contracts,
+        domain_requirements=requirements,
+        source_evidence=_source_evidence(project_root, owner, related_contracts),
+        suggested_contract=suggested_contract,
+        suggested_database_objects=_suggested_database_objects(domain, requirements),
+        suggested_service_skeleton=_suggested_service_skeleton(domain, owner),
+        suggested_rbac_permissions=_suggested_rbac(suggested_contract, domain),
+        relevant_contracts=[
+            "contracts-repo/docs/contract-inventory.json",
+            "contracts-repo/packages/ceerat-contracts/proto",
+            "contracts-repo/packages/ceerat-contracts/domain/models.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper.go",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go",
         ],
-        required_protos=[
-            "Check contracts-repo/docs/contract-inventory.json before adding a proto package, message, or RPC.",
-            f"If this is a new boundary, consider proto package `{proto_package}` with a `{method_prefix}Manager` or domain-specific gRPC service.",
-            "If an existing package owns the domain, extend that package instead of creating a duplicate.",
-            "Add request/response messages, regenerate protobuf Go code with `make proto`, and keep contracts free of GORM/database concerns.",
-            "For every protected RPC, add the exact full method to KnownGRPCMethods and default role permissions.",
+        relevant_services=[
+            "services-repo/docs/grpc-service-inventory.json",
+            "services-repo/services/ceerat-user-service",
+            "services-repo/services/ceerat-user-service/docs/new-service-cookbook.md",
+            "services-repo/services/ceerat-user-service/docs/api.md",
+            "services-repo/services/ceerat-user-service/docs/grpc-security.md",
+            "services-repo/services/ceerat-user-service/docs/logging.md",
+            "services-repo/services/ceerat-user-service/docs/api-testing.md",
         ],
-        required_services=[
-            "Check services-repo/docs/grpc-service-inventory.json before creating a new backend service.",
-            "Prefer extending ceerat-user-service unless the domain has independent ownership, scaling, security, or persistence lifecycle needs.",
-            "Implement generated gRPC handlers plus repository methods following the existing handler.go/repository.go/handler_test.go pattern.",
-            "Wire startup with config, structured logger, DB connection, migrations/seed, repositories, JWT/RBAC interceptors, service registration, reflection, and optional admin HTTP hooks.",
-            "Add admin HTTP endpoints only for service-owned operational management and protect them with admin-only auth.",
+        relevant_database=[
+            "Backend services own OLTP database schema and migrations.",
+            "Apps and agents must not write directly to PostgreSQL.",
+            "Use repository-level authenticated ownership scoping.",
+            "Use transactions for multi-table writes.",
+            "Use separate BI/event storage for analytics and intelligence workloads.",
         ],
-        required_database_migrations=[
-            "Define OLTP tables/entities, primary keys, foreign keys, unique constraints, indexes, and status values.",
-            "Use repository-level ownership scoping for customer/user-owned reads and writes.",
-            "Use transactions for multi-table writes and snapshot mutable catalog data when historical accuracy matters.",
-            "Add idempotent seed data only when required.",
-            "Send reporting/intelligence data to a separate BI/event store when needed; do not use raw logs as reporting storage.",
+        relevant_security=[
+            "Use JWT -> RBAC -> Logging -> Handler interceptor order.",
+            "Add protected RPCs to KnownGRPCMethods.",
+            "Add default role permissions to DefaultRolePermissions.",
+            "Keep DefaultPublicMethods minimal.",
+            "Handlers must use AuthenticatedUserFromContext and enforce record ownership.",
         ],
-        required_rbac_permissions=[
-            "Use JWT -> RBAC -> Logging -> Handler interceptor order for protected unary gRPC calls.",
-            "Keep DefaultPublicMethods minimal; public methods should normally be login, registration, token validation, or health only.",
-            "Add new protected full gRPC methods to KnownGRPCMethods.",
-            "Update DefaultRolePermissions for admin, agent, customer, or new roles as appropriate.",
-            "Handlers must read AuthenticatedUserFromContext and enforce record ownership beyond method-level RBAC.",
+        relevant_apps_or_callers=[
+            "apps-repo/docs/app-surface-inventory.json",
+            "Use app inventory only for caller compatibility.",
+            "Do not design frontend pages, templates, CSS, browser JavaScript, or AI chat UI in this builder.",
         ],
-        required_logging_events=[
-            "Use structured slog logs with stable service/env context.",
-            "Log grpc_method, status, duration_ms, and error for gRPC calls.",
-            "Redact fields containing password, token, secret, or key.",
-            "Add business events for meaningful mutations, such as created/updated/status_changed/assigned, suitable for future BI ingestion.",
-            "Analytics/event failures must not roll back primary OLTP transactions unless explicitly required.",
+        standards_to_apply=[
+            "ceerat-platform-builder-agent/.ceerat-agent/architecture.md",
+            "ceerat-platform-builder-agent/.ceerat-agent/module-generation-standard.md",
+            "ceerat-platform-builder-agent/.ceerat-agent/service-standards.md",
+            "ceerat-platform-builder-agent/.ceerat-agent/security-rbac-standard.md",
+            "Prefer extending existing service boundaries when inventory shows ownership.",
+            "Use contract-first service development.",
         ],
-        integration_impact=[
-            "Check apps-repo/docs/app-surface-inventory.json only for caller compatibility; do not design frontend UI in this builder.",
-            "If contracts change, identify existing app, admin, customer, or AI callers that need follow-up work by another agent.",
-            "If a new process is introduced, note infra start/stop/log/env updates required in infra.",
-            "If AI tools should use the new service later, note the backend RPCs and permissions they would call, but do not implement AI tool/UI behavior here.",
+        required_output_from_codex=[
+            "Concrete service ownership decision.",
+            "Concrete proto messages/RPCs/full gRPC method names.",
+            "Concrete handler/repository/model/migration changes.",
+            "Concrete RBAC/public-method/ownership checks.",
+            "Concrete logging/business event behavior.",
+            "Concrete tests and verification commands.",
+            "Integration impact only for existing apps/AI/infra callers.",
         ],
-        required_tests=[
-            "Contract generation/build tests.",
-            "Handler tests for valid requests, invalid arguments, backend errors, and domain edge cases.",
-            "Repository tests for ownership scoping, constraints, transactions, and not-found behavior.",
-            "Security tests for missing token, invalid token, RBAC denied, RBAC allowed, and cross-user access denied.",
-            "Admin HTTP tests if admin hooks are added.",
-            "Logging/redaction and business event tests for important mutations.",
-        ],
-        risks_questions=[
-            "Confirm whether this belongs in ceerat-user-service or a new backend service.",
-            "Confirm authenticated ownership model and role permissions before implementation.",
-            "Confirm required statuses, uniqueness rules, deletion/archival behavior, and seed data.",
-            "Confirm whether any existing app or AI caller needs coordinated follow-up.",
-            "Confirm BI/event requirements if this service creates executive reporting or recommendations later.",
+        warnings=[
+            "Local mode is a fact/context packet, not an AI-generated final plan.",
+            "Codex must perform the actual domain reasoning.",
+            "If the request is ambiguous, Codex should ask or state assumptions before implementation.",
+            "Use --mode ai when a cloud environment needs OpenAI to generate the final structured plan without Codex.",
         ],
     )
 
@@ -241,6 +749,11 @@ def plan(
         "--mode",
         help="Planning mode: local or ai. Local does not call OpenAI; ai requires OPENAI_API_KEY.",
     ),
+    requirements_file: Optional[Path] = typer.Option(
+        None,
+        "--requirements-file",
+        help="Optional JSON file with domain-specific must-have fields, relationships, and rules for local mode.",
+    ),
 ) -> None:
     """Create a structured service implementation plan. This command does not generate code."""
     output = output.lower().strip()
@@ -260,22 +773,28 @@ def plan(
             settings = load_ai_settings(Path(".").resolve())
             context = load_agent_context(settings.project_root)
             client = CeeratOpenAIClient(api_key=settings.api_key, model=settings.model)
-            implementation_plan = build_ai_plan(
+            result = build_ai_plan(
                 client=client,
                 context=context,
                 user_request=request,
             )
         else:
-            implementation_plan = _local_plan(request, Path(".").resolve())
+            result = _local_packet(request, Path(".").resolve(), requirements_file)
     except (ConfigError, ContextError, OpenAIClientError, json.JSONDecodeError) as exc:
         error_console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
 
     if output == "json":
-        _write_output(_plan_json(implementation_plan), output_file)
+        if isinstance(result, PlanningPacket):
+            _write_output(_packet_json(result), output_file)
+        else:
+            _write_output(_plan_json(result), output_file)
         return
 
-    render_plan(implementation_plan)
+    if isinstance(result, PlanningPacket):
+        render_packet(result)
+    else:
+        render_plan(result)
 
 
 def _workspace_root(project_root: Path) -> Path:
@@ -374,8 +893,11 @@ def inventory(
 
 @app.command("schema")
 def schema() -> None:
-    """Print the strict JSON schema Codex should expect from plan --output json."""
-    print(json.dumps(ImplementationPlan.model_json_schema(), indent=2, sort_keys=True))
+    """Print the JSON schemas for local planning packets and AI implementation plans."""
+    print(json.dumps({
+        "local_planning_packet": PlanningPacket.model_json_schema(),
+        "ai_implementation_plan": ImplementationPlan.model_json_schema(),
+    }, indent=2, sort_keys=True))
 
 
 @app.command("check-context")

@@ -1,0 +1,22 @@
+{
+  "domains": {
+    "invoice": {
+      "must_have_fields": [
+        {
+          "name": "order_id",
+          "requirement": "Invoice must identify the order it bills.",
+          "implementation_hint": "Add invoices.order_id as a required foreign key to orders.id and expose order_id in create/get/list invoice contract messages."
+        }
+      ],
+      "must_have_relationships": [
+        {
+          "name": "order_to_invoices",
+          "requirement": "One order can have many invoices; each invoice belongs to one order.",
+          "implementation_hint": "Use invoices.order_id -> orders.id. Add an index on invoices.order_id. Do not add a unique constraint on order_id."
+        }
+      ],
+      "business_rules": [],
+      "workflow_rules": []
+    }
+  }
+}

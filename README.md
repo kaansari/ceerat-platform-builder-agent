@@ -3,10 +3,10 @@
 Developer CLI agent for planning Ceerat backend service capabilities.
 
 This tool reads Ceerat architecture context and repository inventories, then
-prints a structured implementation plan. It has two planning modes:
+prints structured JSON for service work. It has two planning modes:
 
-- `local`: default mode for Codex. Does not call OpenAI or require an API key.
-- `ai`: future cloud mode. Calls OpenAI and requires `OPENAI_API_KEY`.
+- `local`: default mode for Codex. Does not call OpenAI or require an API key. Returns a planning packet for Codex to reason over.
+- `ai`: future cloud mode. Calls OpenAI and requires `OPENAI_API_KEY`. Returns a full implementation plan.
 
 The builder does not generate code, modify external repositories, or run git
 commands.
@@ -52,6 +52,27 @@ Codex/tool-friendly JSON output:
 ceerat-builder plan --output json "create invoice service with customer relation and line items"
 ```
 
+In local mode, this JSON is a planning packet, not the final service design.
+It contains the request, inventory matches, extracted related contracts,
+recommended owner, domain requirements, concrete source evidence, suggested
+contract/RPC skeletons, suggested database objects, suggested service files,
+suggested RBAC permissions, relevant standards/docs, caller compatibility
+context, and explicit instructions for Codex.
+
+Domain requirements can be kept in `.ceerat-agent/domain-requirements.json`.
+Use this file for must-have business fields and relationships that should not be
+lost during planning. For example, the invoice entry states that one order can
+have many invoices, so the builder tells Codex to use `invoices.order_id ->
+orders.id`, add an index, and avoid a unique constraint on `order_id`.
+
+You can also pass a different requirements file:
+
+```bash
+ceerat-builder plan --output json \
+  --requirements-file /tmp/invoice-requirements.json \
+  "create invoice service"
+```
+
 Future cloud/AI mode:
 
 ```bash
@@ -90,7 +111,30 @@ ceerat-builder inventory
 ceerat-builder inventory --output json
 ```
 
-The output includes:
+Local packet output includes:
+
+- original request
+- Codex task
+- inventory matches
+- detected domain
+- recommended owner
+- related contract summaries
+- domain requirements from request text and `.ceerat-agent/domain-requirements.json`
+- source evidence from current service, contract, security, logging, and docs files
+- suggested contract/RPC skeleton
+- suggested database objects
+- suggested service skeleton
+- suggested RBAC permissions
+- relevant contracts
+- relevant services
+- database context
+- security context
+- app/caller compatibility context
+- standards to apply
+- required output from Codex
+- warnings
+
+AI mode plan output includes:
 
 - module name
 - business objects
@@ -112,7 +156,8 @@ backend services:
 User asks Codex for a service
   -> Codex runs ceerat-builder inventory
   -> Codex runs ceerat-builder plan --mode local --output json "<request>"
-  -> Codex reads the structured plan
+  -> Codex reads the planning packet
+  -> Codex produces the actual service plan or implementation
   -> Codex implements in a temp workspace or explicit approved target
   -> Codex runs tests/builds
   -> User reviews and approves before real repo changes are merged
