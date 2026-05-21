@@ -5,7 +5,7 @@ This is a developer CLI agent, not part of the runtime Ceerat web app.
 Use:
 - Python 3.11+
 - Typer for CLI
-- OpenAI Python SDK
+- OpenAI Python SDK for optional cloud AI planning mode
 - Pydantic for structured models
 - PyYAML for future specs
 - Jinja2 for future templates
@@ -42,14 +42,16 @@ ceerat-builder plan "create invoice module"
 The command should:
 1. Load Ceerat architecture docs from .ceerat-agent/
 2. Load system and planner prompts
-3. Read OPENAI_API_KEY from environment
-4. Read OPENAI_MODEL from environment, default to gpt-4.1-mini
-5. Send the user request plus Ceerat context to OpenAI
-6. Print a structured implementation plan using Rich
+3. Load contract, service, and app inventories
+4. Build a local structured implementation plan for Codex by default
+5. Print a structured implementation plan using Rich or JSON
+6. Support optional `--mode ai`, which calls OpenAI and requires OPENAI_API_KEY
 
 Also support tool-friendly commands:
 
 - `ceerat-builder plan --output json "<request>"`
+- `ceerat-builder plan --mode local --output json "<request>"`
+- `ceerat-builder plan --mode ai --output json "<request>"`
 - `ceerat-builder plan --output json --output-file <path> "<request>"`
 - `ceerat-builder schema`
 - `ceerat-builder check-context`
@@ -63,18 +65,16 @@ For now:
 - only produce a plan
 
 Add clean error handling for:
-- missing OPENAI_API_KEY
 - missing architecture docs
-- OpenAI API failure
+- missing inventory files
+- missing OPENAI_API_KEY only when `--mode ai`
+- OpenAI API failure only when `--mode ai`
 
 README should include:
 
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-
-export OPENAI_API_KEY="sk-your-key"
-export OPENAI_MODEL="gpt-4.1-mini"
 
 ceerat-builder plan "create invoice module with customer relation and line items"
 

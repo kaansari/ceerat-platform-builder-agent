@@ -2,10 +2,14 @@
 
 Developer CLI agent for planning Ceerat backend service capabilities.
 
-This tool reads Ceerat architecture context from `.ceerat-agent/`, sends a module
-request to OpenAI, and prints a structured implementation plan. For now it only
-produces plans; it does not generate code, modify external repositories, or run
-git commands.
+This tool reads Ceerat architecture context and repository inventories, then
+prints a structured implementation plan. It has two planning modes:
+
+- `local`: default mode for Codex. Does not call OpenAI or require an API key.
+- `ai`: future cloud mode. Calls OpenAI and requires `OPENAI_API_KEY`.
+
+The builder does not generate code, modify external repositories, or run git
+commands.
 
 The agent is intentionally scoped to backend service work:
 
@@ -30,19 +34,16 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-## Configuration
-
-```bash
-export OPENAI_API_KEY="sk-your-key"
-export OPENAI_MODEL="gpt-4.1-mini"
-```
-
-`OPENAI_MODEL` is optional and defaults to `gpt-4.1-mini`.
-
 ## Usage
 
 ```bash
 ceerat-builder plan "create invoice module with customer relation and line items"
+```
+
+The default is local mode:
+
+```bash
+ceerat-builder plan --mode local "create invoice service"
 ```
 
 Codex/tool-friendly JSON output:
@@ -50,6 +51,17 @@ Codex/tool-friendly JSON output:
 ```bash
 ceerat-builder plan --output json "create invoice service with customer relation and line items"
 ```
+
+Future cloud/AI mode:
+
+```bash
+export OPENAI_API_KEY="sk-your-key"
+export OPENAI_MODEL="gpt-4.1-mini"
+
+ceerat-builder plan --mode ai --output json "create invoice service"
+```
+
+`OPENAI_API_KEY` is required only for `--mode ai`.
 
 Write the plan to a file:
 
@@ -93,13 +105,13 @@ The output includes:
 
 ## Codex Tool Workflow
 
-The builder is meant to be a tool that Codex can call before implementing backend
-services:
+The builder is meant to be a local tool that Codex can call before implementing
+backend services:
 
 ```text
 User asks Codex for a service
   -> Codex runs ceerat-builder inventory
-  -> Codex runs ceerat-builder plan --output json "<request>"
+  -> Codex runs ceerat-builder plan --mode local --output json "<request>"
   -> Codex reads the structured plan
   -> Codex implements in a temp workspace or explicit approved target
   -> Codex runs tests/builds
@@ -108,4 +120,6 @@ User asks Codex for a service
 
 The builder does not apply code changes by itself. It gives Codex a consistent
 Ceerat-specific service plan and inventory context so the implementation starts
-from the platform standards instead of a fresh reread of every repository.
+from the platform standards instead of a fresh reread of every repository. In
+local mode, Codex does the reasoning and implementation. In cloud AI mode, the
+builder can ask OpenAI for the service plan when Codex is not available.

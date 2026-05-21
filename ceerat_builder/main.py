@@ -9,11 +9,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from ceerat_builder.config import ConfigError, load_settings
+from ceerat_builder.config import ConfigError, load_ai_settings
 from ceerat_builder.context_loader import ContextError, load_agent_context
 from ceerat_builder.models import ImplementationPlan
 from ceerat_builder.openai_client import CeeratOpenAIClient, OpenAIClientError
-from ceerat_builder.planner import build_plan
+from ceerat_builder.planner import build_ai_plan
 
 app = typer.Typer(help="Ceerat Service Builder Agent CLI.")
 console = Console()
@@ -69,6 +69,156 @@ def render_plan(plan: ImplementationPlan) -> None:
     console.print(table)
 
 
+def _words(value: str) -> List[str]:
+    cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in value)
+    return [word for word in cleaned.split() if word]
+
+
+def _request_terms(value: str) -> List[str]:
+    ignored = {
+        "a",
+        "an",
+        "and",
+        "build",
+        "create",
+        "for",
+        "me",
+        "module",
+        "new",
+        "service",
+        "the",
+        "with",
+    }
+    return [word for word in _words(value) if word not in ignored]
+
+
+def _domain_name(request: str) -> str:
+    words = _request_terms(request)
+    if not words:
+        return "Requested"
+    return " ".join(word.capitalize() for word in words[:3])
+
+
+def _matching_contracts(inventories: Dict[str, Any], request: str) -> List[str]:
+    request_words = set(_request_terms(request))
+    matches: List[str] = []
+    for package in inventories["contracts"].get("proto_packages", []):
+        haystack = set(_words(" ".join([
+            package.get("package", ""),
+            package.get("service", {}).get("full_service", ""),
+            package.get("service", {}).get("domain", ""),
+        ])))
+        if request_words & haystack:
+            matches.append(package.get("service", {}).get("full_service", package.get("package", "")))
+    return matches
+
+
+def _matching_services(inventories: Dict[str, Any], request: str) -> List[str]:
+    request_words = set(_request_terms(request))
+    matches: List[str] = []
+    for service in inventories["services"].get("grpc_services", []):
+        haystack = set(_words(" ".join([
+            service.get("full_service", ""),
+            service.get("domain", ""),
+            service.get("owner_project", ""),
+        ])))
+        if request_words & haystack:
+            matches.append(service.get("full_service", ""))
+    return matches
+
+
+def _local_plan(request: str, project_root: Path) -> ImplementationPlan:
+    # Loading context here validates the builder setup even though the local planner
+    # does not send that context to an external model.
+    load_agent_context(project_root)
+    inventories = _load_inventories(project_root)
+    domain = _domain_name(request)
+    module_name = f"{domain} Service"
+    contract_matches = _matching_contracts(inventories, request)
+    service_matches = _matching_services(inventories, request)
+
+    if contract_matches or service_matches:
+        ownership_note = (
+            "Inventory match found: "
+            + ", ".join(sorted(set(contract_matches + service_matches)))
+            + ". Codex should extend the existing owner when the requested behavior belongs there."
+        )
+    else:
+        ownership_note = (
+            "No direct inventory match found. Codex should decide whether this is a new service boundary "
+            "or a new module inside ceerat-user-service before writing code."
+        )
+
+    proto_package = domain.lower().replace(" ", "_").replace("-", "_")
+    method_prefix = "".join(part.capitalize() for part in proto_package.split("_"))
+
+    return ImplementationPlan(
+        module_name=module_name,
+        business_objects=[
+            f"User request: {request}",
+            ownership_note,
+            "Codex must identify core domain objects, relationships, ownership, lifecycle statuses, and business events before implementation.",
+            "Customer-owned or user-owned data must be scoped to the authenticated user in handlers and repositories.",
+        ],
+        required_protos=[
+            "Check contracts-repo/docs/contract-inventory.json before adding a proto package, message, or RPC.",
+            f"If this is a new boundary, consider proto package `{proto_package}` with a `{method_prefix}Manager` or domain-specific gRPC service.",
+            "If an existing package owns the domain, extend that package instead of creating a duplicate.",
+            "Add request/response messages, regenerate protobuf Go code with `make proto`, and keep contracts free of GORM/database concerns.",
+            "For every protected RPC, add the exact full method to KnownGRPCMethods and default role permissions.",
+        ],
+        required_services=[
+            "Check services-repo/docs/grpc-service-inventory.json before creating a new backend service.",
+            "Prefer extending ceerat-user-service unless the domain has independent ownership, scaling, security, or persistence lifecycle needs.",
+            "Implement generated gRPC handlers plus repository methods following the existing handler.go/repository.go/handler_test.go pattern.",
+            "Wire startup with config, structured logger, DB connection, migrations/seed, repositories, JWT/RBAC interceptors, service registration, reflection, and optional admin HTTP hooks.",
+            "Add admin HTTP endpoints only for service-owned operational management and protect them with admin-only auth.",
+        ],
+        required_database_migrations=[
+            "Define OLTP tables/entities, primary keys, foreign keys, unique constraints, indexes, and status values.",
+            "Use repository-level ownership scoping for customer/user-owned reads and writes.",
+            "Use transactions for multi-table writes and snapshot mutable catalog data when historical accuracy matters.",
+            "Add idempotent seed data only when required.",
+            "Send reporting/intelligence data to a separate BI/event store when needed; do not use raw logs as reporting storage.",
+        ],
+        required_rbac_permissions=[
+            "Use JWT -> RBAC -> Logging -> Handler interceptor order for protected unary gRPC calls.",
+            "Keep DefaultPublicMethods minimal; public methods should normally be login, registration, token validation, or health only.",
+            "Add new protected full gRPC methods to KnownGRPCMethods.",
+            "Update DefaultRolePermissions for admin, agent, customer, or new roles as appropriate.",
+            "Handlers must read AuthenticatedUserFromContext and enforce record ownership beyond method-level RBAC.",
+        ],
+        required_logging_events=[
+            "Use structured slog logs with stable service/env context.",
+            "Log grpc_method, status, duration_ms, and error for gRPC calls.",
+            "Redact fields containing password, token, secret, or key.",
+            "Add business events for meaningful mutations, such as created/updated/status_changed/assigned, suitable for future BI ingestion.",
+            "Analytics/event failures must not roll back primary OLTP transactions unless explicitly required.",
+        ],
+        integration_impact=[
+            "Check apps-repo/docs/app-surface-inventory.json only for caller compatibility; do not design frontend UI in this builder.",
+            "If contracts change, identify existing app, admin, customer, or AI callers that need follow-up work by another agent.",
+            "If a new process is introduced, note infra start/stop/log/env updates required in infra.",
+            "If AI tools should use the new service later, note the backend RPCs and permissions they would call, but do not implement AI tool/UI behavior here.",
+        ],
+        required_tests=[
+            "Contract generation/build tests.",
+            "Handler tests for valid requests, invalid arguments, backend errors, and domain edge cases.",
+            "Repository tests for ownership scoping, constraints, transactions, and not-found behavior.",
+            "Security tests for missing token, invalid token, RBAC denied, RBAC allowed, and cross-user access denied.",
+            "Admin HTTP tests if admin hooks are added.",
+            "Logging/redaction and business event tests for important mutations.",
+        ],
+        risks_questions=[
+            "Confirm whether this belongs in ceerat-user-service or a new backend service.",
+            "Confirm authenticated ownership model and role permissions before implementation.",
+            "Confirm required statuses, uniqueness rules, deletion/archival behavior, and seed data.",
+            "Confirm whether any existing app or AI caller needs coordinated follow-up.",
+            "Confirm BI/event requirements if this service creates executive reporting or recommendations later.",
+        ],
+    )
+
+
 @app.command()
 def plan(
     request: str = typer.Argument(
@@ -86,26 +236,38 @@ def plan(
         "--output-file",
         help="Optional file path for JSON output.",
     ),
+    mode: str = typer.Option(
+        "local",
+        "--mode",
+        help="Planning mode: local or ai. Local does not call OpenAI; ai requires OPENAI_API_KEY.",
+    ),
 ) -> None:
     """Create a structured service implementation plan. This command does not generate code."""
     output = output.lower().strip()
+    mode = mode.lower().strip()
     if output not in {"table", "json"}:
         error_console.print("[bold red]Error:[/bold red] --output must be table or json")
+        raise typer.Exit(code=2)
+    if mode not in {"local", "ai"}:
+        error_console.print("[bold red]Error:[/bold red] --mode must be local or ai")
         raise typer.Exit(code=2)
     if output_file is not None and output != "json":
         error_console.print("[bold red]Error:[/bold red] --output-file is only supported with --output json")
         raise typer.Exit(code=2)
 
     try:
-        settings = load_settings()
-        context = load_agent_context(settings.project_root)
-        client = CeeratOpenAIClient(api_key=settings.api_key, model=settings.model)
-        implementation_plan = build_plan(
-            client=client,
-            context=context,
-            user_request=request,
-        )
-    except (ConfigError, ContextError, OpenAIClientError) as exc:
+        if mode == "ai":
+            settings = load_ai_settings(Path(".").resolve())
+            context = load_agent_context(settings.project_root)
+            client = CeeratOpenAIClient(api_key=settings.api_key, model=settings.model)
+            implementation_plan = build_ai_plan(
+                client=client,
+                context=context,
+                user_request=request,
+            )
+        else:
+            implementation_plan = _local_plan(request, Path(".").resolve())
+    except (ConfigError, ContextError, OpenAIClientError, json.JSONDecodeError) as exc:
         error_console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
 

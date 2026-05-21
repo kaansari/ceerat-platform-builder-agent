@@ -5,7 +5,7 @@ from ceerat_builder.models import ImplementationPlan
 from ceerat_builder.openai_client import CeeratOpenAIClient
 
 
-def build_plan(
+def build_ai_plan(
     *,
     client: CeeratOpenAIClient,
     context: AgentContext,
