@@ -123,7 +123,14 @@ def render_packet(packet: PlanningPacket) -> None:
 
 
 def _words(value: str) -> List[str]:
-    cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in value)
+    expanded: List[str] = []
+    previous = ""
+    for ch in value:
+        if ch.isupper() and previous and (previous.islower() or previous.isdigit()):
+            expanded.append(" ")
+        expanded.append(ch)
+        previous = ch
+    cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in "".join(expanded))
     return [word for word in cleaned.split() if word]
 
 
@@ -167,11 +174,15 @@ def _request_terms(value: str) -> List[str]:
         "new",
         "not",
         "one",
+        "page",
         "record",
         "records",
+        "route",
         "service",
+        "surface",
         "the",
         "to",
+        "ui",
         "unique",
         "update",
         "use",
@@ -250,7 +261,15 @@ def _service_matches(inventories: Dict[str, Any], request: str) -> List[Inventor
             service.get("full_service", ""),
             service.get("domain", ""),
             service.get("owner_project", ""),
-            " ".join(method.get("name", "") for method in service.get("methods", [])),
+            " ".join(
+                " ".join([
+                    method.get("name", ""),
+                    method.get("request", ""),
+                    method.get("response", ""),
+                    method.get("full_method", ""),
+                ])
+                for method in service.get("methods", [])
+            ),
         ])))
         shared = sorted(request_words & haystack)
         if shared:
@@ -380,6 +399,38 @@ def _suggested_contract(domain: str) -> SuggestedContract:
     )
 
 
+def _suggested_contract_for_related(domain: str, related: RelatedContract) -> SuggestedContract:
+    pascal = _pascal(domain)
+    package = related.package or domain.replace("-", "_")
+    service = related.service.split(".")[-1] if related.service else f"{pascal}Manager"
+    full_service = related.service or f"{package}.{service}"
+    rpcs = [
+        SuggestedRPC(name=f"Create{pascal}", full_method=f"/{full_service}/Create{pascal}", request=f"Create{pascal}Request", response=f"{pascal}Response", purpose=f"Create a {domain} record."),
+        SuggestedRPC(name=f"Get{pascal}", full_method=f"/{full_service}/Get{pascal}", request=f"Get{pascal}Request", response=f"{pascal}Response", purpose=f"Get one {domain} record."),
+        SuggestedRPC(name=f"List{pascal}s", full_method=f"/{full_service}/List{pascal}s", request=f"List{pascal}sRequest", response=f"List{pascal}sResponse", purpose=f"List {domain} records."),
+        SuggestedRPC(name=f"Update{pascal}", full_method=f"/{full_service}/Update{pascal}", request=f"Update{pascal}Request", response=f"{pascal}Response", purpose=f"Update a {domain} record."),
+        SuggestedRPC(name=f"Delete{pascal}", full_method=f"/{full_service}/Delete{pascal}", request=f"Delete{pascal}Request", response=f"Delete{pascal}Response", purpose=f"Delete a {domain} record."),
+    ]
+    return SuggestedContract(
+        package=package,
+        service=service,
+        proto_path=related.proto_path or f"packages/ceerat-contracts/proto/{package}/{package}.proto",
+        rpcs=rpcs,
+        messages=[
+            pascal,
+            f"Create{pascal}Request",
+            f"Get{pascal}Request",
+            f"List{pascal}sRequest",
+            f"Update{pascal}Request",
+            f"Delete{pascal}Request",
+            f"{pascal}Response",
+            f"List{pascal}sResponse",
+            f"Delete{pascal}Response",
+            "Error",
+        ],
+    )
+
+
 def _suggested_database_objects(domain: str, requirements: List[DomainRequirement]) -> List[SuggestedDatabaseObject]:
     table = f"{domain}s"
     field_names = [requirement.name for requirement in requirements if requirement.category == "field" and requirement.name]
@@ -403,7 +454,7 @@ def _suggested_database_objects(domain: str, requirements: List[DomainRequiremen
     ]
 
 
-def _suggested_service_skeleton(domain: str, owner: RecommendedOwner) -> SuggestedServiceSkeleton:
+def _suggested_service_skeleton(domain: str, owner: RecommendedOwner, related: Optional[RelatedContract] = None) -> SuggestedServiceSkeleton:
     package = domain.replace("-", "_")
     if owner.recommendation == "extend_existing_service":
         base = "services-repo/services/ceerat-user-service"
@@ -421,7 +472,7 @@ def _suggested_service_skeleton(domain: str, owner: RecommendedOwner) -> Suggest
             ],
             startup_wiring=[
                 f"Create {domain} repository after DB/migrations.",
-                f"Register generated { _pascal(domain) }Manager gRPC server.",
+                f"Expose {domain} RPCs through {related.service if related else _pascal(domain) + 'Manager'} registration.",
                 f"Ensure JWT/RBAC/logging interceptors protect {domain} RPCs.",
                 "Enable reflection as existing service already does.",
             ],
@@ -646,7 +697,7 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
     requirements = _domain_requirements(domain, request, resolved_requirements_file)
     related_contracts = _related_contracts(inventories, request, requirements)
     owner = _recommended_owner(domain, related_contracts)
-    suggested_contract = _suggested_contract(domain)
+    suggested_contract = _suggested_contract_for_related(domain, related_contracts[0]) if related_contracts else _suggested_contract(domain)
 
     return PlanningPacket(
         request=request,
@@ -663,7 +714,7 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
         source_evidence=_source_evidence(project_root, owner, related_contracts),
         suggested_contract=suggested_contract,
         suggested_database_objects=_suggested_database_objects(domain, requirements),
-        suggested_service_skeleton=_suggested_service_skeleton(domain, owner),
+        suggested_service_skeleton=_suggested_service_skeleton(domain, owner, related_contracts[0] if related_contracts else None),
         suggested_rbac_permissions=_suggested_rbac(suggested_contract, domain),
         relevant_contracts=[
             "contracts-repo/docs/contract-inventory.json",
@@ -820,8 +871,930 @@ def _load_inventories(project_root: Path) -> Dict[str, Any]:
     return {name: _read_json(path) for name, path in files.items()}
 
 
+def _print_json(payload: Dict[str, Any]) -> None:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _workspace_path(project_root: Path, relative_path: str) -> Path:
+    return _workspace_root(project_root) / relative_path
+
+
+def _safe_relative_files(root: Path, max_depth: int) -> List[str]:
+    if not root.exists():
+        return []
+    files: List[str] = []
+    root = root.resolve()
+    for path in sorted(root.rglob("*")):
+        if path.name in {".git", "__pycache__", ".venv", "node_modules", "bin"}:
+            continue
+        if any(part in {".git", "__pycache__", ".venv", "node_modules", "bin"} for part in path.relative_to(root).parts):
+            continue
+        depth = len(path.relative_to(root).parts)
+        if depth > max_depth:
+            continue
+        suffix = "/" if path.is_dir() else ""
+        files.append(str(path.relative_to(root)) + suffix)
+    return files
+
+
+def _service_pattern_payload() -> Dict[str, Any]:
+    return {
+        "kind": "service",
+        "purpose": "Factual backend service implementation pattern for Codex before editing.",
+        "standard_files": [
+            "main.go wires DB, migrations, seed hooks, repositories, gRPC registration, reflection, admin HTTP hooks.",
+            "<domain>/handler.go implements generated gRPC server methods and auth/ownership checks.",
+            "<domain>/repository.go owns DB queries, transactions, filters, and persistence mapping.",
+            "<domain>/handler_test.go follows existing gRPC/bufconn or handler test patterns.",
+            "internal/models/models.go stores GORM entities migrated from main.go.",
+        ],
+        "wiring_steps": [
+            "Add generated proto import in service main.",
+            "Add model to AutoMigrate or migration path used by the service.",
+            "Construct repository after DB connection.",
+            "Register generated gRPC server on grpc.NewServer.",
+            "Keep reflection enabled for local grpcurl/testing.",
+        ],
+        "reference_files": [
+            "services-repo/services/ceerat-user-service/main.go",
+            "services-repo/services/ceerat-user-service/orders/handler.go",
+            "services-repo/services/ceerat-user-service/orders/repository.go",
+            "services-repo/services/ceerat-user-service/orders/handler_test.go",
+            "services-repo/services/ceerat-user-service/internal/models/models.go",
+        ],
+    }
+
+
+def _grpc_security_pattern_payload() -> Dict[str, Any]:
+    return {
+        "kind": "grpc-security",
+        "interceptor_order": "JWT -> RBAC -> logging -> handler for unary calls when JWT auth is enabled.",
+        "must_update": [
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go: KnownGRPCMethods",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go: DefaultRolePermissions",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go: DefaultPublicMethods only when a method is intentionally public",
+        ],
+        "handler_rules": [
+            "Use authenticated user context for protected methods.",
+            "Enforce ownership in handler/repository for customer/user-owned data.",
+            "Do not rely on caller UI visibility for authorization.",
+        ],
+        "reference_files": [
+            "services-repo/services/ceerat-user-service/main.go",
+            "services-repo/services/ceerat-user-service/rbac.go",
+            "contracts-repo/packages/ceerat-contracts/security/jwt_interceptor.go",
+            "contracts-repo/packages/ceerat-contracts/security/rbac_interceptor.go",
+            "contracts-repo/packages/ceerat-contracts/security/auth_context.go",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go",
+        ],
+    }
+
+
+def _repository_pattern_payload() -> Dict[str, Any]:
+    return {
+        "kind": "repository",
+        "purpose": "Repository layer owns database access and should keep handler logic thin.",
+        "rules": [
+            "Keep SQL/GORM queries in repository packages, not app/UI code.",
+            "Use transactions for multi-table writes.",
+            "Return domain/proto-friendly values through handler mapping conventions.",
+            "Add indexes for list filters and ownership checks.",
+        ],
+        "reference_files": [
+            "services-repo/services/ceerat-user-service/orders/repository.go",
+            "services-repo/services/ceerat-user-service/customers/repository.go",
+            "services-repo/services/ceerat-user-service/services/repository.go",
+            "services-repo/services/ceerat-user-service/user/repository.go",
+        ],
+    }
+
+
+def _testing_pattern_payload() -> Dict[str, Any]:
+    return {
+        "kind": "testing",
+        "commands": [
+            "go test ./...",
+            "go build ./...",
+        ],
+        "test_targets": [
+            "handler tests for gRPC behavior and auth/ownership paths",
+            "repository tests or focused DB tests when persistence logic is non-trivial",
+            "security/RBAC tests when adding public or protected methods",
+        ],
+        "reference_files": [
+            "services-repo/services/ceerat-user-service/orders/handler_test.go",
+            "services-repo/services/ceerat-user-service/customers/handler_test.go",
+            "contracts-repo/packages/ceerat-contracts/security/rbac_interceptor_test.go",
+            "contracts-repo/packages/ceerat-contracts/security/jwt_interceptor_test.go",
+            "services-repo/services/ceerat-user-service/docs/api-testing.md",
+        ],
+    }
+
+
+def _patterns_payload(kind: str) -> Dict[str, Any]:
+    patterns = {
+        "service": _service_pattern_payload,
+        "grpc-security": _grpc_security_pattern_payload,
+        "security": _grpc_security_pattern_payload,
+        "repository": _repository_pattern_payload,
+        "testing": _testing_pattern_payload,
+    }
+    key = kind.lower().strip()
+    if key not in patterns:
+        raise ContextError("Unknown pattern. Use service, grpc-security, repository, or testing.")
+    return patterns[key]()
+
+
+def _read_doc_summary(path: Path, max_chars: int = 4000) -> Dict[str, Any]:
+    if not path.is_file():
+        return {"path": str(path), "exists": False, "summary": ""}
+    text = path.read_text(encoding="utf-8", errors="replace")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    headings = [line for line in lines if line.startswith("#")][:20]
+    return {
+        "path": str(path),
+        "exists": True,
+        "headings": headings,
+        "excerpt": text[:max_chars],
+    }
+
+
+def _cookbook_payload(project_root: Path, kind: str) -> Dict[str, Any]:
+    if kind.lower().strip() != "service":
+        raise ContextError("Unknown cookbook. Use service.")
+    workspace = _workspace_root(project_root)
+    paths = [
+        workspace / "services-repo/services/ceerat-user-service/docs/new-service-cookbook.md",
+        workspace / "services-repo/services/ceerat-user-service/docs/api.md",
+        workspace / "services-repo/services/ceerat-user-service/docs/grpc-security.md",
+        workspace / "services-repo/services/ceerat-user-service/docs/logging.md",
+        workspace / "services-repo/services/ceerat-user-service/docs/api-testing.md",
+    ]
+    return {
+        "kind": "service",
+        "purpose": "Docs Codex should consult before creating or extending backend services.",
+        "docs": [_read_doc_summary(path, max_chars=2500) for path in paths],
+    }
+
+
+def _requirements_payload(project_root: Path, domain: str, requirements_file: Optional[Path] = None) -> Dict[str, Any]:
+    path = requirements_file or _default_requirements_path(project_root.resolve())
+    requirements = _domain_requirements(domain, f"create {domain} service", path)
+    return {
+        "domain": domain,
+        "requirements_file": str(path),
+        "requirements": [item.model_dump() for item in requirements],
+    }
+
+
+def _verification_payload(service: str) -> Dict[str, Any]:
+    service = service.strip()
+    service_path = f"services-repo/services/{service}"
+    return {
+        "service": service,
+        "workdir": service_path,
+        "commands": [
+            {"command": "go test ./...", "purpose": "Run service tests."},
+            {"command": "go build ./...", "purpose": "Compile service packages."},
+        ],
+        "additional_checks": [
+            "Run contract package tests if proto/security files changed.",
+            "Run grpcurl against local stack when adding or changing gRPC methods.",
+            "Check service logs for startup, migration, RBAC seed, and registration errors.",
+        ],
+        "related_workdirs": [
+            "contracts-repo/packages/ceerat-contracts",
+            "infra",
+        ],
+    }
+
+
+def _service_full_methods_from_contracts(inventories: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    methods: Dict[str, List[Dict[str, Any]]] = {}
+    for package in inventories["contracts"].get("proto_packages", []):
+        service = package.get("service", {})
+        full_service = service.get("full_service", "")
+        if not full_service:
+            continue
+        methods[full_service] = []
+        for rpc in service.get("rpcs", []):
+            full_method = rpc.get("full_method") or f"/{full_service}/{rpc.get('name', '')}"
+            methods[full_service].append({
+                "name": rpc.get("name", ""),
+                "full_method": full_method,
+                "request": rpc.get("request", ""),
+                "response": rpc.get("response", ""),
+            })
+    return methods
+
+
+def _find_contract_service(inventories: Dict[str, Any], target: str) -> Optional[Dict[str, Any]]:
+    target_words = set(_words(target))
+    packages = inventories["contracts"].get("proto_packages", [])
+    for package in packages:
+        service = package.get("service", {})
+        names = {
+            package.get("package", ""),
+            service.get("name", ""),
+            service.get("full_service", ""),
+        }
+        if target in names:
+            return package
+    for package in packages:
+        service = package.get("service", {})
+        names = {
+            package.get("package", ""),
+            service.get("name", ""),
+            service.get("full_service", ""),
+        }
+        haystack = set(_words(" ".join(names)))
+        if target_words and target_words <= haystack:
+            return package
+    return None
+
+
+def _find_service_inventory(inventories: Dict[str, Any], target: str) -> Optional[Dict[str, Any]]:
+    target_words = set(_words(target))
+    services = inventories["services"].get("grpc_services", [])
+    for service in services:
+        names = {
+            service.get("name", ""),
+            service.get("full_service", ""),
+            service.get("owner_project", ""),
+        }
+        if target in names:
+            return service
+    for service in services:
+        names = {
+            service.get("name", ""),
+            service.get("full_service", ""),
+            service.get("owner_project", ""),
+        }
+        haystack = set(_words(" ".join(names)))
+        if target_words and target_words <= haystack:
+            return service
+    return None
+
+
+def _method_kind(name: str) -> str:
+    if name.startswith(("Get", "List", "Search")):
+        return "read"
+    if name.startswith(("Create", "Update", "Delete", "Remove", "Assign")):
+        return "write"
+    return "unknown"
+
+
+def _decision_payload(project_root: Path, request: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    domain = _domain_key(request)
+    reqs = _domain_requirements(domain, request, _default_requirements_path(project_root.resolve()))
+    contract_matches = _contract_matches(inventories, request)
+    service_matches = _service_matches(inventories, request)
+    app_matches = _app_matches(inventories, request)
+    related = _related_contracts(inventories, request, reqs)
+
+    if service_matches:
+        recommendation = "extend_existing_service"
+        owner = service_matches[0].name
+        reason = service_matches[0].reason
+    elif contract_matches:
+        recommendation = "extend_existing_contract_owner"
+        owner = contract_matches[0].name
+        reason = contract_matches[0].reason
+    elif related:
+        recommendation = "extend_related_service"
+        owner = related[0].service
+        reason = related[0].reason
+    else:
+        recommendation = "requires_codex_decision"
+        owner = "new-service-or-existing-module"
+        reason = "No existing inventory owner matched strongly."
+
+    service_inventory = _find_service_inventory(inventories, owner) if owner else None
+    return {
+        "request": request,
+        "detected_domain": domain,
+        "decision": {
+            "recommendation": recommendation,
+            "owner": owner,
+            "reason": reason,
+        },
+        "inventory_matches": {
+            "contracts": [item.model_dump() for item in contract_matches],
+            "services": [item.model_dump() for item in service_matches],
+            "apps_callers_only": [item.model_dump() for item in app_matches],
+        },
+        "related_contracts": [item.model_dump() for item in related],
+        "recommended_files": [
+            "contracts-repo/packages/ceerat-contracts/proto/service/service.proto",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/domain/models.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper.go",
+            service_inventory.get("implementation_package", "services-repo/services/ceerat-user-service") if service_inventory else "services-repo/services",
+            "services-repo/docs/grpc-service-inventory.json",
+            "contracts-repo/docs/contract-inventory.json",
+        ],
+        "notes": [
+            "Use this as evidence for ownership, not as final domain design.",
+            "Apps inventory is caller compatibility context only for this service-focused builder.",
+        ],
+    }
+
+
+def _contract_impact_payload(project_root: Path, target: str, add: Optional[str]) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    contract = _find_contract_service(inventories, target)
+    service = _find_service_inventory(inventories, target)
+    full_service = contract.get("service", {}).get("full_service", target) if contract else target
+    capability = _pascal(add or "Capability")
+    rpc_names = [
+        f"Create{capability}",
+        f"Get{capability}",
+        f"List{capability}s",
+        f"Update{capability}",
+        f"Delete{capability}",
+    ] if add else []
+    return {
+        "target": target,
+        "capability": add,
+        "contract_found": contract is not None,
+        "service_found": service is not None,
+        "full_service": full_service,
+        "existing_rpcs": contract.get("service", {}).get("rpcs", []) if contract else [],
+        "expected_new_contract_surface": {
+            "rpc_names": rpc_names,
+            "full_methods": [f"/{full_service}/{name}" for name in rpc_names],
+            "messages": [
+                capability,
+                f"Create{capability}Request",
+                f"Get{capability}Request",
+                f"List{capability}sRequest",
+                f"Update{capability}Request",
+                f"Delete{capability}Request",
+                f"{capability}Response",
+                f"List{capability}sResponse",
+            ] if add else [],
+            "field_policy": "Do not infer business fields here. Use explicit user requirements and domain-requirements.json.",
+        },
+        "files_to_consider": [
+            contract.get("proto_path", "contracts-repo/packages/ceerat-contracts/proto") if contract else "contracts-repo/packages/ceerat-contracts/proto",
+            "contracts-repo/packages/ceerat-contracts/domain/models.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper.go",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go",
+            "contracts-repo/docs/contract-inventory.json",
+            service.get("implementation_package", "services-repo/services/ceerat-user-service") if service else "services-repo/services",
+            "services-repo/docs/grpc-service-inventory.json",
+        ],
+        "commands": _proto_commands_payload(project_root, full_service)["commands"],
+        "warnings": [
+            "Regenerate proto outputs after editing .proto files.",
+            "Update RBAC before running protected methods locally.",
+            "Update both contract and service inventories after the implementation is settled.",
+        ],
+    }
+
+
+def _rbac_suggestion_payload(project_root: Path, target: str, capability: Optional[str]) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    contract = _find_contract_service(inventories, target)
+    full_service = contract.get("service", {}).get("full_service", target) if contract else target
+    if capability:
+        cap = _pascal(capability)
+        methods = [
+            {"name": f"Create{cap}", "full_method": f"/{full_service}/Create{cap}"},
+            {"name": f"Get{cap}", "full_method": f"/{full_service}/Get{cap}"},
+            {"name": f"List{cap}s", "full_method": f"/{full_service}/List{cap}s"},
+            {"name": f"Update{cap}", "full_method": f"/{full_service}/Update{cap}"},
+            {"name": f"Delete{cap}", "full_method": f"/{full_service}/Delete{cap}"},
+        ]
+    else:
+        methods = _service_full_methods_from_contracts(inventories).get(full_service, [])
+
+    suggested = []
+    for method in methods:
+        kind = _method_kind(method.get("name", ""))
+        roles = ["admin", "agent"]
+        if kind == "read":
+            roles.append("customer")
+        suggested.append({
+            "method": method.get("full_method", ""),
+            "method_kind": kind,
+            "default_roles": roles,
+            "public": False,
+            "ownership_rule": "Handlers/repositories must enforce tenant/customer ownership for customer-visible records.",
+        })
+    return {
+        "target": target,
+        "capability": capability,
+        "full_service": full_service,
+        "suggested_permissions": suggested,
+        "files_to_update": [
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go only if intentionally public",
+            "services-repo/services/ceerat-user-service/docs/grpc-security.md if behavior changes",
+            "contracts-repo/docs/contract-inventory.json",
+            "services-repo/docs/grpc-service-inventory.json",
+        ],
+    }
+
+
+def _security_inventory(inventories: Dict[str, Any]) -> Dict[str, Any]:
+    return inventories["contracts"].get("security_contracts", {})
+
+
+def _rbac_check_payload(project_root: Path) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    contract_methods = {
+        method["full_method"]
+        for methods in _service_full_methods_from_contracts(inventories).values()
+        for method in methods
+        if method.get("full_method")
+    }
+    service_methods = {
+        method.get("full_method", "")
+        for service in inventories["services"].get("grpc_services", [])
+        for method in service.get("methods", [])
+        if method.get("full_method")
+    }
+    security = _security_inventory(inventories)
+    known = set(security.get("known_grpc_methods", []))
+    public = set(security.get("default_public_methods", []))
+    role_methods = {
+        method
+        for methods in security.get("default_role_permissions", {}).values()
+        for method in methods
+        if method != "*"
+    }
+    issues: List[Dict[str, Any]] = []
+    for method in sorted(contract_methods - known - public):
+        issues.append({"severity": "high", "type": "missing_known_grpc_method", "method": method})
+    for method in sorted(role_methods - known - public):
+        issues.append({"severity": "high", "type": "role_permission_not_known_or_public", "method": method})
+    for method in sorted(service_methods - contract_methods):
+        issues.append({"severity": "medium", "type": "service_inventory_method_missing_from_contract_inventory", "method": method})
+    for method in sorted(contract_methods - service_methods):
+        issues.append({"severity": "medium", "type": "contract_method_missing_from_service_inventory", "method": method})
+    return {
+        "ok": not issues,
+        "contract_methods": len(contract_methods),
+        "service_inventory_methods": len(service_methods),
+        "known_grpc_methods": len(known),
+        "public_methods": len(public),
+        "role_permission_methods": len(role_methods),
+        "issues": issues,
+    }
+
+
+def _model_evidence_payload(project_root: Path, model_name: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    needle = model_name.lower()
+    proto_messages = []
+    rpcs = []
+    for package in inventories["contracts"].get("proto_packages", []):
+        for message in package.get("messages", []):
+            if needle in message.get("name", "").lower():
+                proto_messages.append({
+                    "package": package.get("package", ""),
+                    "proto_path": package.get("proto_path", ""),
+                    "message": message,
+                })
+        for rpc in package.get("service", {}).get("rpcs", []):
+            haystack = " ".join([rpc.get("name", ""), rpc.get("request", ""), rpc.get("response", "")]).lower()
+            if needle in haystack:
+                rpcs.append({
+                    "service": package.get("service", {}).get("full_service", ""),
+                    "proto_path": package.get("proto_path", ""),
+                    "rpc": rpc,
+                })
+    domain_models = [
+        model for model in inventories["contracts"].get("domain_models", [])
+        if needle in model.get("name", "").lower()
+    ]
+    mappers = []
+    for mapper in inventories["contracts"].get("mapper_functions", []):
+        if isinstance(mapper, str):
+            if needle in mapper.lower():
+                mappers.append(mapper)
+        elif needle in " ".join(mapper.get("functions", [])).lower():
+            mappers.append(mapper)
+    service_methods = [
+        {
+            "service": service.get("full_service", ""),
+            "implementation_package": service.get("implementation_package", ""),
+            "method": method,
+        }
+        for service in inventories["services"].get("grpc_services", [])
+        for method in service.get("methods", [])
+        if needle in " ".join([method.get("name", ""), method.get("request", ""), method.get("response", "")]).lower()
+    ]
+    return {
+        "model": model_name,
+        "found": bool(proto_messages or domain_models or mappers or service_methods),
+        "proto_messages": proto_messages,
+        "domain_models": domain_models,
+        "mapper_functions": mappers,
+        "service_methods": service_methods,
+        "file_hints": [
+            "contracts-repo/packages/ceerat-contracts/domain/models.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper.go",
+            "contracts-repo/packages/ceerat-contracts/proto",
+            "services-repo/services/ceerat-user-service/internal/models/models.go",
+        ],
+    }
+
+
+def _proto_commands_payload(project_root: Path, target: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    contract = _find_contract_service(inventories, target)
+    proto_path = contract.get("proto_path", "contracts-repo/packages/ceerat-contracts/proto") if contract else "contracts-repo/packages/ceerat-contracts/proto"
+    return {
+        "target": target,
+        "workdir": "contracts-repo/packages/ceerat-contracts",
+        "proto_path": proto_path,
+        "commands": [
+            {"command": "make proto", "purpose": "Regenerate Go protobuf and gRPC files after .proto edits."},
+            {"command": "go test ./...", "purpose": "Run contract, mapper, and security tests."},
+            {"command": "go build ./...", "purpose": "Compile generated contract package."},
+        ],
+        "expected_generated_files": [
+            "contracts-repo/packages/ceerat-contracts/proto/**/*.pb.go",
+            "contracts-repo/packages/ceerat-contracts/proto/**/*_grpc.pb.go",
+        ],
+    }
+
+
+def _inventory_patch_hints_payload(project_root: Path, target: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    contract = _find_contract_service(inventories, target)
+    service = _find_service_inventory(inventories, target)
+    return {
+        "target": target,
+        "contract_inventory": {
+            "path": "contracts-repo/docs/contract-inventory.json",
+            "patch_sections": [
+                "proto_packages[].service.rpcs",
+                "proto_packages[].messages",
+                "domain_models",
+                "mapper_functions",
+                "security_contracts.known_grpc_methods",
+                "security_contracts.default_role_permissions",
+            ],
+            "current_contract": contract,
+        },
+        "service_inventory": {
+            "path": "services-repo/docs/grpc-service-inventory.json",
+            "patch_sections": [
+                "grpc_services[].methods",
+                "grpc_services[].implementation_package",
+                "grpc_services[].default_role_permissions_summary",
+                "backend_services[].docs",
+            ],
+            "current_service": service,
+        },
+        "apps_inventory": {
+            "path": "apps-repo/docs/app-surface-inventory.json",
+            "patch_when": "Only update when app handlers, routes, templates, static files, or AI tools changed.",
+        },
+    }
+
+
+def _verification_contract_and_service_payload(target: str) -> Dict[str, Any]:
+    return {
+        "scope": "contract-and-service",
+        "target": target,
+        "commands": [
+            {
+                "workdir": "contracts-repo/packages/ceerat-contracts",
+                "command": "make proto",
+                "purpose": "Regenerate generated protobuf files.",
+            },
+            {
+                "workdir": "contracts-repo/packages/ceerat-contracts",
+                "command": "go test ./...",
+                "purpose": "Run contract, mapper, and security tests.",
+            },
+            {
+                "workdir": "contracts-repo/packages/ceerat-contracts",
+                "command": "go build ./...",
+                "purpose": "Compile contract package.",
+            },
+            {
+                "workdir": "services-repo/services/ceerat-user-service",
+                "command": "go test ./...",
+                "purpose": "Run service implementation tests.",
+            },
+            {
+                "workdir": "services-repo/services/ceerat-user-service",
+                "command": "go build ./...",
+                "purpose": "Compile service packages.",
+            },
+            {
+                "workdir": "ceerat-platform-builder-agent",
+                "command": "ceerat-builder check drift --output json",
+                "purpose": "Check inventory/security drift after edits.",
+            },
+        ],
+        "manual_checks": [
+            "Start infra stack and call changed methods with grpcurl when runtime behavior changed.",
+            "Check logs for startup, migration, RBAC seed, and registration errors.",
+            "Confirm inventories describe the final implemented surface.",
+        ],
+    }
+
+
+def _drift_payload(project_root: Path) -> Dict[str, Any]:
+    rbac = _rbac_check_payload(project_root)
+    issues = list(rbac["issues"])
+    inventories = _load_inventories(project_root)
+    contract_services = {
+        package.get("service", {}).get("full_service", "")
+        for package in inventories["contracts"].get("proto_packages", [])
+        if package.get("service", {}).get("full_service")
+    }
+    service_services = {
+        service.get("full_service", "")
+        for service in inventories["services"].get("grpc_services", [])
+        if service.get("full_service")
+    }
+    for service in sorted(contract_services - service_services):
+        issues.append({"severity": "medium", "type": "contract_service_missing_from_service_inventory", "service": service})
+    for service in sorted(service_services - contract_services):
+        issues.append({"severity": "medium", "type": "service_inventory_missing_from_contract_inventory", "service": service})
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "checked": [
+            "contract proto RPCs vs KnownGRPCMethods",
+            "DefaultRolePermissions vs known/public methods",
+            "contracts inventory methods vs services inventory methods",
+            "contracts inventory services vs services inventory services",
+        ],
+    }
+
+
+def _app_items(inventories: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return inventories["apps"].get("browser_apps", []) + inventories["apps"].get("ai_apps", [])
+
+
+def _find_app(inventories: Dict[str, Any], target: str) -> Optional[Dict[str, Any]]:
+    target_words = set(_words(target))
+    for app_item in _app_items(inventories):
+        names = {app_item.get("name", ""), app_item.get("path", ""), app_item.get("type", "")}
+        if target in names:
+            return app_item
+    for app_item in _app_items(inventories):
+        names = {app_item.get("name", ""), app_item.get("path", ""), app_item.get("type", "")}
+        haystack = set(_words(" ".join(names)))
+        if target_words and target_words <= haystack:
+            return app_item
+    return None
+
+
+def _app_route_source(inventories: Dict[str, Any], app_name: str) -> str:
+    source = inventories["apps"].get("source_of_truth", {})
+    keys = {
+        "ceerat-admin-ui": "admin_ui_routes",
+        "ceerat-web-ui": "web_ui_routes",
+        "ceerat-customer-ui": "customer_ui_routes",
+        "ceerat-agent-service": "agent_service_routes",
+    }
+    return source.get(keys.get(app_name, ""), "")
+
+
+def _app_context_payload(project_root: Path, target: Optional[str]) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    apps = _app_items(inventories)
+    selected = [_find_app(inventories, target)] if target else apps
+    selected = [app_item for app_item in selected if app_item]
+    return {
+        "scope": "apps",
+        "target": target or "all",
+        "purpose": "Lightweight app discovery context. Use this for route/template/static/caller awareness, not final UI design.",
+        "inventory": "apps-repo/docs/app-surface-inventory.json",
+        "source_of_truth": inventories["apps"].get("source_of_truth", {}),
+        "apps": [
+            {
+                "name": app_item.get("name", ""),
+                "path": app_item.get("path", ""),
+                "type": app_item.get("type", ""),
+                "default_port": app_item.get("default_port", ""),
+                "session_cookie": app_item.get("session_cookie", ""),
+                "dependencies": app_item.get("dependencies", []),
+                "config": app_item.get("config", {}),
+                "handler_count": len(app_item.get("handlers", [])),
+                "template_count": len(app_item.get("templates", [])),
+                "static_file_count": len(app_item.get("static_files", [])),
+                "chatgpt_client_file_count": len(app_item.get("chatgpt_client_files", [])),
+                "tools": app_item.get("tools", []),
+                "code_inventory": app_item.get("code_inventory", {}),
+            }
+            for app_item in selected
+        ],
+        "active_chat_surfaces": inventories["apps"].get("active_chat_surfaces", []),
+        "rules": inventories["apps"].get("inventory_rules", []),
+        "checklist": inventories["apps"].get("builder_checklist_before_new_app_surface", []),
+    }
+
+
+def _app_surface_payload(project_root: Path, target: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    app_item = _find_app(inventories, target)
+    if not app_item:
+        raise ContextError(f"Unknown app: {target}")
+    return {
+        "app": app_item.get("name", target),
+        "path": app_item.get("path", ""),
+        "type": app_item.get("type", ""),
+        "handlers": app_item.get("handlers", []),
+        "templates": app_item.get("templates", []),
+        "static_files": app_item.get("static_files", []),
+        "chatgpt_client_files": app_item.get("chatgpt_client_files", []),
+        "tools": app_item.get("tools", []),
+        "dependencies": app_item.get("dependencies", []),
+        "code_inventory": app_item.get("code_inventory", {}),
+    }
+
+
+def _app_match_payload(project_root: Path, request: str) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    terms = set(_request_terms(request))
+    matches: List[Dict[str, Any]] = []
+    for app_item in _app_items(inventories):
+        fields = [
+            app_item.get("name", ""),
+            app_item.get("type", ""),
+            " ".join(app_item.get("dependencies", [])),
+            " ".join(app_item.get("tools", [])),
+            " ".join(app_item.get("templates", [])),
+            " ".join(app_item.get("static_files", [])),
+            " ".join(app_item.get("chatgpt_client_files", [])),
+        ]
+        for handler in app_item.get("handlers", []):
+            fields.append(" ".join(str(value) for value in handler.values()))
+        shared = sorted(terms & set(_words(" ".join(fields))))
+        if shared:
+            matches.append({
+                "app": app_item.get("name", ""),
+                "path": app_item.get("path", ""),
+                "type": app_item.get("type", ""),
+                "matched_terms": shared,
+                "matching_handlers": [
+                    handler for handler in app_item.get("handlers", [])
+                    if terms & set(_words(" ".join(str(value) for value in handler.values())))
+                ],
+                "matching_templates": [
+                    path for path in app_item.get("templates", [])
+                    if terms & set(_words(path))
+                ],
+                "matching_static_files": [
+                    path for path in app_item.get("static_files", []) + app_item.get("chatgpt_client_files", [])
+                    if terms & set(_words(path))
+                ],
+                "matching_tools": [
+                    tool for tool in app_item.get("tools", [])
+                    if terms & set(_words(tool))
+                ],
+            })
+    chat_matches = []
+    for surface in inventories["apps"].get("active_chat_surfaces", []):
+        shared = sorted(terms & set(_words(" ".join(str(value) for value in surface.values()))))
+        if shared:
+            chat_matches.append({"matched_terms": shared, **surface})
+    return {
+        "request": request,
+        "matches": matches,
+        "active_chat_surface_matches": chat_matches,
+        "guidance": [
+            "Extend an existing route/surface when a close match exists.",
+            "Business operations should continue through backend service APIs.",
+            "Update apps-repo/docs/app-surface-inventory.json when adding or removing routes, templates, static files, chat assets, AI endpoints, or tools.",
+        ],
+    }
+
+
+def _app_impact_payload(project_root: Path, target: str, route: Optional[str], surface: Optional[str]) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    app_item = _find_app(inventories, target)
+    if not app_item:
+        raise ContextError(f"Unknown app: {target}")
+    app_path = app_item.get("path", "")
+    commands = [
+        {"workdir": f"apps-repo/{app_path}", "command": "go test ./...", "purpose": "Run app tests if present."},
+        {"workdir": f"apps-repo/{app_path}", "command": "go build ./...", "purpose": "Compile app packages."},
+    ]
+    return {
+        "app": app_item.get("name", target),
+        "path": app_path,
+        "requested_route": route,
+        "requested_surface": surface,
+        "existing_handlers": app_item.get("handlers", []),
+        "files_to_inspect": [
+            _app_route_source(inventories, app_item.get("name", "")),
+            *app_item.get("templates", []),
+            *app_item.get("static_files", []),
+            *app_item.get("chatgpt_client_files", []),
+        ],
+        "inventory_updates": [
+            "apps-repo/docs/app-surface-inventory.json browser_apps[].handlers or ai_apps[].handlers",
+            "apps-repo/docs/app-surface-inventory.json templates/static_files/chatgpt_client_files/tools when changed",
+            "apps-repo/docs/app-surface-inventory.json active_chat_surfaces when chat wiring changes",
+        ],
+        "dependency_notes": app_item.get("dependencies", []),
+        "commands": commands,
+        "boundaries": [
+            "This builder only discovers app surfaces for now.",
+            "Do not use app discovery as a final UI design standard.",
+            "Do not add direct database access from browser apps.",
+        ],
+    }
+
+
+def _app_check_payload(project_root: Path) -> Dict[str, Any]:
+    inventories = _load_inventories(project_root)
+    workspace = _workspace_root(project_root)
+    issues: List[Dict[str, Any]] = []
+    for app_item in _app_items(inventories):
+        routes: Dict[str, int] = {}
+        for handler in app_item.get("handlers", []):
+            route = handler.get("route", "")
+            if route:
+                routes[route] = routes.get(route, 0) + 1
+        for route, count in sorted(routes.items()):
+            if count > 1:
+                issues.append({
+                    "severity": "medium",
+                    "type": "duplicate_route_in_app_inventory",
+                    "app": app_item.get("name", ""),
+                    "route": route,
+                    "count": count,
+                })
+        for file_path in app_item.get("templates", []) + app_item.get("static_files", []) + app_item.get("chatgpt_client_files", []):
+            candidate = workspace / "apps-repo" / file_path
+            if not candidate.exists():
+                issues.append({
+                    "severity": "low",
+                    "type": "inventory_file_missing_on_disk",
+                    "app": app_item.get("name", ""),
+                    "path": file_path,
+                })
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "checked": [
+            "duplicate routes inside each app inventory entry",
+            "template/static/chat asset inventory paths exist on disk",
+        ],
+    }
+
+
+def _codex_context_payload(project_root: Path) -> Dict[str, Any]:
+    return {
+        "purpose": "Fast starting context for Codex service work.",
+        "first_commands": [
+            "ceerat-builder inventory services --output json",
+            "ceerat-builder inventory contracts --output json",
+            "ceerat-builder decide-owner \"<request>\" --output json",
+            "ceerat-builder patterns service --output json",
+            "ceerat-builder patterns grpc-security --output json",
+            "ceerat-builder evidence request \"<request>\" --output json",
+            "ceerat-builder rbac check --output json",
+            "ceerat-builder check drift --output json",
+            "ceerat-builder plan --output json \"<request>\"",
+        ],
+        "app_discovery_commands": [
+            "ceerat-builder app-context --output json",
+            "ceerat-builder app-surface ceerat-web-ui --output json",
+            "ceerat-builder app-match \"<request>\" --output json",
+            "ceerat-builder app-impact ceerat-web-ui --route \"GET /example\" --output json",
+            "ceerat-builder check apps --output json",
+        ],
+        "standards": [
+            ".ceerat-agent/architecture.md",
+            ".ceerat-agent/module-generation-standard.md",
+            ".ceerat-agent/service-standards.md",
+            ".ceerat-agent/security-rbac-standard.md",
+        ],
+        "inventories": {
+            "services": str(_workspace_path(project_root, "services-repo/docs/grpc-service-inventory.json")),
+            "contracts": str(_workspace_path(project_root, "contracts-repo/docs/contract-inventory.json")),
+            "apps": str(_workspace_path(project_root, "apps-repo/docs/app-surface-inventory.json")),
+        },
+        "rules": [
+            "Use builder output as factual context, not final design.",
+            "Use requirements files for business/domain must-haves.",
+            "Keep apps/AI inventory as caller compatibility only for service builder work.",
+        ],
+    }
+
+
 @app.command("inventory")
 def inventory(
+    kind: Optional[str] = typer.Argument(
+        None,
+        help="Optional inventory kind: all, services, contracts, or apps.",
+    ),
     output: str = typer.Option(
         "summary",
         "--output",
@@ -836,8 +1809,12 @@ def inventory(
 ) -> None:
     """Inspect Ceerat inventories without calling OpenAI."""
     output = output.lower().strip()
+    kind = (kind or "all").lower().strip()
     if output not in {"summary", "json"}:
         error_console.print("[bold red]Error:[/bold red] --output must be summary or json")
+        raise typer.Exit(code=2)
+    if kind not in {"all", "services", "contracts", "apps"}:
+        error_console.print("[bold red]Error:[/bold red] kind must be all, services, contracts, or apps")
         raise typer.Exit(code=2)
     try:
         inventories = _load_inventories(project_root)
@@ -846,7 +1823,23 @@ def inventory(
         raise typer.Exit(code=1) from exc
 
     if output == "json":
-        print(json.dumps(inventories, indent=2, sort_keys=True))
+        payload = inventories if kind == "all" else {kind: inventories[kind]}
+        _print_json(payload)
+        return
+
+    if kind != "all":
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Inventory", style="bold")
+        table.add_column("Summary")
+        payload = inventories[kind]
+        if kind == "services":
+            rows = [f"{item.get('full_service', item.get('name', ''))}: {item.get('implementation_package', item.get('path', ''))}" for item in payload.get("grpc_services", [])]
+        elif kind == "contracts":
+            rows = [f"{item.get('package', '')}: {item.get('proto_path', '')}" for item in payload.get("proto_packages", [])]
+        else:
+            rows = [f"{item.get('name', '')}: {item.get('path', '')}" for item in payload.get("browser_apps", []) + payload.get("ai_apps", [])]
+        table.add_row(kind, "\n".join(rows) if rows else "None")
+        console.print(table)
         return
 
     contracts = inventories["contracts"]
@@ -888,6 +1881,564 @@ def inventory(
             ]
         ),
     )
+    console.print(table)
+
+
+@app.command("decide-owner")
+def decide_owner(
+    request: str = typer.Argument(..., help='Service request, such as "create product service".'),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return inventory-backed service ownership decision evidence."""
+    output = output.lower().strip()
+    try:
+        payload = _decision_payload(project_root, request)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    table.add_row("Decision", payload["decision"]["recommendation"])
+    table.add_row("Owner", payload["decision"]["owner"])
+    table.add_row("Reason", payload["decision"]["reason"])
+    console.print(table)
+
+
+@app.command("impact")
+def impact(
+    kind: str = typer.Argument(..., help="Impact kind. Currently: contract."),
+    target: str = typer.Argument(..., help="Target service, such as service.ServiceManager."),
+    add: Optional[str] = typer.Option(None, "--add", help="Optional capability/model being added."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return files and surfaces likely impacted by a service contract change."""
+    output = output.lower().strip()
+    if kind.lower().strip() != "contract":
+        error_console.print("[bold red]Error:[/bold red] impact kind must be contract")
+        raise typer.Exit(code=2)
+    try:
+        payload = _contract_impact_payload(project_root, target, add)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Area")
+    table.add_column("Value")
+    table.add_row("Full service", payload["full_service"])
+    table.add_row("Files", "\n".join(payload["files_to_consider"]))
+    console.print(table)
+
+
+@app.command("rbac")
+def rbac(
+    action: str = typer.Argument(..., help="RBAC action: suggest or check."),
+    target: Optional[str] = typer.Argument(None, help="Target gRPC service for suggest."),
+    capability: Optional[str] = typer.Option(None, "--capability", help="Optional capability/model name for suggest."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Suggest or check gRPC RBAC inventory/security data."""
+    output = output.lower().strip()
+    action = action.lower().strip()
+    try:
+        if action == "suggest":
+            if not target:
+                error_console.print("[bold red]Error:[/bold red] rbac suggest requires a target")
+                raise typer.Exit(code=2)
+            payload = _rbac_suggestion_payload(project_root, target, capability)
+        elif action == "check":
+            payload = _rbac_check_payload(project_root)
+        else:
+            error_console.print("[bold red]Error:[/bold red] rbac action must be suggest or check")
+            raise typer.Exit(code=2)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Item")
+    table.add_column("Value")
+    if action == "check":
+        table.add_row("OK", str(payload["ok"]))
+        table.add_row("Issues", "\n".join(str(issue) for issue in payload["issues"]) or "None")
+    else:
+        for item in payload["suggested_permissions"]:
+            table.add_row(item["method"], ", ".join(item["default_roles"]))
+    console.print(table)
+
+
+@app.command("proto-commands")
+def proto_commands(
+    target: str = typer.Argument("service", help="Target proto package/service."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return contract/proto regeneration commands for Codex."""
+    output = output.lower().strip()
+    try:
+        payload = _proto_commands_payload(project_root, target)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Command")
+    table.add_column("Purpose")
+    for item in payload["commands"]:
+        table.add_row(item["command"], item["purpose"])
+    console.print(table)
+
+
+@app.command("inventory-patch-hints")
+def inventory_patch_hints(
+    target: str = typer.Argument(..., help="Target service or contract, such as service.ServiceManager."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return inventory sections that usually need updates after service changes."""
+    output = output.lower().strip()
+    try:
+        payload = _inventory_patch_hints_payload(project_root, target)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Inventory")
+    table.add_column("Sections")
+    table.add_row(payload["contract_inventory"]["path"], "\n".join(payload["contract_inventory"]["patch_sections"]))
+    table.add_row(payload["service_inventory"]["path"], "\n".join(payload["service_inventory"]["patch_sections"]))
+    table.add_row(payload["apps_inventory"]["path"], payload["apps_inventory"]["patch_when"])
+    console.print(table)
+
+
+@app.command("check")
+def check(
+    kind: str = typer.Argument(..., help="Check kind: drift or apps."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Run non-mutating consistency checks over inventories and security data."""
+    output = output.lower().strip()
+    kind = kind.lower().strip()
+    if kind not in {"drift", "apps"}:
+        error_console.print("[bold red]Error:[/bold red] check kind must be drift or apps")
+        raise typer.Exit(code=2)
+    try:
+        payload = _app_check_payload(project_root) if kind == "apps" else _drift_payload(project_root)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Severity")
+    table.add_column("Issue")
+    for issue in payload["issues"]:
+        table.add_row(issue.get("severity", ""), json.dumps(issue, sort_keys=True))
+    if not payload["issues"]:
+        table.add_row("ok", "No drift issues found.")
+    console.print(table)
+
+
+@app.command("app-context")
+def app_context(
+    target: Optional[str] = typer.Argument(None, help="Optional app name, such as ceerat-web-ui."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return lightweight discovery context for browser and AI apps."""
+    output = output.lower().strip()
+    try:
+        payload = _app_context_payload(project_root, target)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("App")
+    table.add_column("Summary")
+    for app_item in payload["apps"]:
+        table.add_row(app_item["name"], f"{app_item['handler_count']} handlers, {app_item['template_count']} templates, {app_item['static_file_count']} static files")
+    console.print(table)
+
+
+@app.command("app-surface")
+def app_surface(
+    target: str = typer.Argument(..., help="App name, such as ceerat-web-ui."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return handlers, templates, static files, tools, and dependencies for one app."""
+    output = output.lower().strip()
+    try:
+        payload = _app_surface_payload(project_root, target)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Route")
+    table.add_column("Handler")
+    for handler in payload["handlers"]:
+        table.add_row(handler.get("route", ""), handler.get("handler", ""))
+    console.print(table)
+
+
+@app.command("app-match")
+def app_match(
+    request: str = typer.Argument(..., help='App request, such as "add product page".'),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Find existing app routes, files, chat surfaces, and tools related to a request."""
+    output = output.lower().strip()
+    try:
+        payload = _app_match_payload(project_root, request)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("App")
+    table.add_column("Matched")
+    for match in payload["matches"]:
+        table.add_row(match["app"], ", ".join(match["matched_terms"]))
+    console.print(table)
+
+
+@app.command("app-impact")
+def app_impact(
+    target: str = typer.Argument(..., help="App name, such as ceerat-web-ui."),
+    route: Optional[str] = typer.Option(None, "--route", help='Optional route being added or changed, such as "GET /products".'),
+    surface: Optional[str] = typer.Option(None, "--surface", help="Optional surface name, such as products page or chat panel."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return likely app files, inventory sections, and verification commands for an app change."""
+    output = output.lower().strip()
+    try:
+        payload = _app_impact_payload(project_root, target, route, surface)
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Area")
+    table.add_column("Value")
+    table.add_row("Files", "\n".join(path for path in payload["files_to_inspect"] if path))
+    table.add_row("Commands", "\n".join(f"{item['workdir']}: {item['command']}" for item in payload["commands"]))
+    console.print(table)
+
+
+@app.command("structure")
+def structure(
+    target: str = typer.Argument(
+        ...,
+        help="Target tree: services-repo, contracts-repo, apps-repo, ceerat-user-service, or a relative path.",
+    ),
+    output: str = typer.Option(
+        "json",
+        "--output",
+        "-o",
+        help="Output format: json or table.",
+    ),
+    max_depth: int = typer.Option(
+        3,
+        "--max-depth",
+        help="Maximum relative path depth to include.",
+    ),
+    project_root: Path = typer.Option(
+        Path("."),
+        "--project-root",
+        help="Builder repo root, or workspace root containing sibling repos.",
+    ),
+) -> None:
+    """Print a compact repo/file structure for Codex discovery."""
+    output = output.lower().strip()
+    aliases = {
+        "services-repo": "services-repo",
+        "contracts-repo": "contracts-repo",
+        "apps-repo": "apps-repo",
+        "ceerat-user-service": "services-repo/services/ceerat-user-service",
+        "contracts": "contracts-repo/packages/ceerat-contracts",
+    }
+    relative = aliases.get(target, target)
+    root = _workspace_path(project_root, relative)
+    payload = {
+        "target": target,
+        "path": str(root),
+        "max_depth": max_depth,
+        "entries": _safe_relative_files(root, max_depth),
+    }
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Path")
+    for entry in payload["entries"]:
+        table.add_row(entry)
+    console.print(table)
+
+
+@app.command("patterns")
+def patterns(
+    kind: str = typer.Argument(..., help="Pattern kind: service, grpc-security, repository, or testing."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+) -> None:
+    """Return reusable service implementation patterns."""
+    output = output.lower().strip()
+    try:
+        payload = _patterns_payload(kind)
+    except ContextError as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=2) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+    for key, value in payload.items():
+        if isinstance(value, list):
+            table.add_row(key, "\n".join(f"- {item}" for item in value))
+        else:
+            table.add_row(key, str(value))
+    console.print(table)
+
+
+@app.command("cookbook")
+def cookbook(
+    kind: str = typer.Argument("service", help="Cookbook kind. Currently: service."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return Codex-friendly cookbook docs for repeated service work."""
+    output = output.lower().strip()
+    try:
+        payload = _cookbook_payload(project_root, kind)
+    except ContextError as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=2) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Doc", style="bold")
+    table.add_column("Headings")
+    for doc in payload["docs"]:
+        table.add_row(doc["path"], "\n".join(doc.get("headings", [])))
+    console.print(table)
+
+
+@app.command("requirements")
+def requirements(
+    domain: str = typer.Argument(..., help="Domain key, such as invoice."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    requirements_file: Optional[Path] = typer.Option(None, "--requirements-file", help="Optional requirements JSON file."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return explicit configured domain requirements."""
+    output = output.lower().strip()
+    try:
+        payload = _requirements_payload(project_root, domain, requirements_file)
+    except json.JSONDecodeError as exc:
+        error_console.print(f"[bold red]Error:[/bold red] invalid requirements JSON: {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Category")
+    table.add_column("Requirement")
+    table.add_column("Hint")
+    for item in payload["requirements"]:
+        table.add_row(item["category"], item["requirement"], item["implementation_hint"])
+    console.print(table)
+
+
+@app.command("evidence")
+def evidence(
+    kind: str = typer.Argument(..., help="Evidence kind: request, domain, service, or model."),
+    value: str = typer.Argument(..., help="Request text, domain key, or service name."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return source evidence and likely related contracts for a request/domain/service."""
+    output = output.lower().strip()
+    kind = kind.lower().strip()
+    try:
+        inventories = _load_inventories(project_root)
+        if kind == "model":
+            payload = _model_evidence_payload(project_root, value)
+        elif kind == "request":
+            domain = _domain_key(value)
+            reqs = _domain_requirements(domain, value, _default_requirements_path(project_root.resolve()))
+            related = _related_contracts(inventories, value, reqs)
+            owner = _recommended_owner(domain, related)
+        elif kind == "domain":
+            domain = value
+            reqs = _domain_requirements(domain, f"create {domain} service", _default_requirements_path(project_root.resolve()))
+            related = _related_contracts(inventories, f"create {domain} service", reqs)
+            owner = _recommended_owner(domain, related)
+        elif kind == "service":
+            domain = value
+            reqs = []
+            related = []
+            owner = RecommendedOwner(service_project=value, path=f"services-repo/services/{value}", recommendation="inspect_existing_service", reason="Service evidence requested directly.")
+        else:
+            raise ContextError("Unknown evidence kind. Use request, domain, service, or model.")
+        if kind != "model":
+            payload = {
+                "kind": kind,
+                "value": value,
+                "domain": domain,
+                "recommended_owner": owner.model_dump(),
+                "domain_requirements": [item.model_dump() for item in reqs],
+                "related_contracts": [item.model_dump() for item in related],
+                "source_evidence": [item.model_dump() for item in _source_evidence(project_root, owner, related)],
+            }
+    except (ContextError, json.JSONDecodeError) as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Evidence")
+    table.add_column("Finding")
+    if kind == "model":
+        table.add_row("found", str(payload["found"]))
+        table.add_row("proto messages", str(len(payload["proto_messages"])))
+        table.add_row("service methods", str(len(payload["service_methods"])))
+    else:
+        for item in payload["source_evidence"]:
+            table.add_row(item["path"], item["finding"])
+    console.print(table)
+
+
+@app.command("verify")
+def verify(
+    service: str = typer.Argument("ceerat-user-service", help="Service project name, or scope: contract-and-service."),
+    target: Optional[str] = typer.Argument(None, help="Target for scoped verification, such as service.ServiceManager."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+) -> None:
+    """Return verification commands Codex should run after service changes."""
+    output = output.lower().strip()
+    if service == "contract-and-service":
+        payload = _verification_contract_and_service_payload(target or "service.ServiceManager")
+    else:
+        payload = _verification_payload(service)
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Command")
+    table.add_column("Purpose")
+    for item in payload["commands"]:
+        command = item["command"]
+        if item.get("workdir"):
+            command = f"{item['workdir']}: {command}"
+        table.add_row(command, item["purpose"])
+    console.print(table)
+
+
+@app.command("codex-context")
+def codex_context(
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return the standard context packet Codex should load before backend service work."""
+    output = output.lower().strip()
+    payload = _codex_context_payload(project_root)
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Area")
+    table.add_column("Items")
+    for key, value in payload.items():
+        if isinstance(value, list):
+            table.add_row(key, "\n".join(f"- {item}" for item in value))
+        elif isinstance(value, dict):
+            table.add_row(key, "\n".join(f"{k}: {v}" for k, v in value.items()))
+        else:
+            table.add_row(key, str(value))
     console.print(table)
 
 

@@ -109,7 +109,67 @@ Inspect the repo inventories without calling OpenAI:
 ```bash
 ceerat-builder inventory
 ceerat-builder inventory --output json
+ceerat-builder inventory services --output json
+ceerat-builder inventory contracts --output json
+ceerat-builder inventory apps --output json
 ```
+
+Codex helper tools:
+
+```bash
+ceerat-builder codex-context --output json
+ceerat-builder structure ceerat-user-service --max-depth 2 --output json
+ceerat-builder decide-owner "create product service" --output json
+ceerat-builder patterns service --output json
+ceerat-builder patterns grpc-security --output json
+ceerat-builder patterns repository --output json
+ceerat-builder patterns testing --output json
+ceerat-builder cookbook service --output json
+ceerat-builder requirements invoice --output json
+ceerat-builder evidence request "create invoice service" --output json
+ceerat-builder evidence model Product --output json
+ceerat-builder impact contract service.ServiceManager --add Product --output json
+ceerat-builder rbac suggest service.ServiceManager --capability Product --output json
+ceerat-builder rbac check --output json
+ceerat-builder proto-commands service --output json
+ceerat-builder inventory-patch-hints service.ServiceManager --output json
+ceerat-builder verify ceerat-user-service --output json
+ceerat-builder verify contract-and-service service.ServiceManager --output json
+ceerat-builder check drift --output json
+```
+
+These commands are intentionally factual. They give Codex inventories, known
+paths, source evidence, implementation patterns, security rules, cookbook docs,
+explicit domain requirements, impact files, RBAC checks, proto commands,
+inventory patch hints, and verification commands. They do not infer business
+fields from hidden domain knowledge and they do not generate code.
+
+Useful command roles:
+
+- `decide-owner` answers "should this extend an existing service or create a new one?" from inventory evidence.
+- `impact contract` lists the contract, generated code, mapper, security, service, and inventory surfaces likely touched by a gRPC change.
+- `rbac suggest` gives method-level role defaults for a target/capability; `rbac check` compares contracts, service inventory, known methods, public methods, and default role permissions.
+- `evidence model` finds existing proto messages, domain models, mapper functions, and service methods for a model name.
+- `proto-commands` returns the contract generation/test/build commands.
+- `inventory-patch-hints` tells Codex which inventory sections usually need updates after a service change.
+- `verify contract-and-service` returns the combined verification path for changes that touch both contracts and service implementation.
+- `check drift` finds inventory/security drift before or after implementation.
+
+Lightweight app discovery tools:
+
+```bash
+ceerat-builder app-context --output json
+ceerat-builder app-context ceerat-web-ui --output json
+ceerat-builder app-surface ceerat-web-ui --output json
+ceerat-builder app-match "add product page" --output json
+ceerat-builder app-impact ceerat-web-ui --route "GET /products" --surface "products page" --output json
+ceerat-builder check apps --output json
+```
+
+The app commands are intentionally simple foundations. They expose existing app
+routes, handlers, templates, static files, chat surfaces, AI tools, dependencies,
+and inventory update hints. They do not define final frontend architecture or UI
+design rules yet.
 
 Local packet output includes:
 
