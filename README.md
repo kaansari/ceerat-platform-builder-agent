@@ -133,6 +133,7 @@ ceerat-builder rbac suggest service.ServiceManager --capability Product --output
 ceerat-builder rbac check --output json
 ceerat-builder proto-commands service --output json
 ceerat-builder inventory-patch-hints service.ServiceManager --output json
+ceerat-builder docs service --output json
 ceerat-builder verify ceerat-user-service --output json
 ceerat-builder verify contract-and-service service.ServiceManager --output json
 ceerat-builder check drift --output json
@@ -152,8 +153,20 @@ Useful command roles:
 - `evidence model` finds existing proto messages, domain models, mapper functions, and service methods for a model name.
 - `proto-commands` returns the contract generation/test/build commands.
 - `inventory-patch-hints` tells Codex which inventory sections usually need updates after a service change.
+- `docs` points to relevant builder, service, inventory, and app documents, plus the post-human-validation documentation checklist.
 - `verify contract-and-service` returns the combined verification path for changes that touch both contracts and service implementation.
 - `check drift` finds inventory/security drift before or after implementation.
+
+Builder knowledge update rule:
+
+```bash
+ceerat-builder docs all --output json
+```
+
+Only update `.ceerat-agent` standards after the implementation is tested and a
+human validates the behavior. Service docs and inventories should describe the
+final implemented surface; builder-agent standards should capture reusable,
+validated platform rules rather than speculative plans.
 
 Lightweight app discovery tools:
 

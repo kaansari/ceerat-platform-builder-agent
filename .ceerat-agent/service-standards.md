@@ -182,7 +182,7 @@ Current service API areas in `ceerat-user-service`:
 | --- | --- | --- |
 | Auth | `proto/auth` | Users, login, registration, token validation, profile/password changes. |
 | Customer | `proto/customer` | Customer profiles and customer ownership flows. |
-| Service Manager | `proto/service` | Service catalog and customer-service assignments. |
+| Service Manager | `proto/service` | Service catalog, product catalog, and customer-service assignments. |
 | Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
 | Patient | `proto/patient` | Simple patient CRUD and compatibility placeholders. |
 
@@ -501,8 +501,11 @@ grpcurl -plaintext \
   -H "authorization: Bearer ${TOKEN}" \
   -d '{}' \
   localhost:50051 \
-  service.ServiceManager/ListServices
+service.ServiceManager/ListServices
+service.ServiceManager/ListProducts
 ```
+
+Product catalog methods are owned by `service.ServiceManager`. Customer role can read/list active products only; admin and agent roles can create, update, and delete products.
 
 Alternative token header:
 
@@ -617,3 +620,17 @@ Definition of done:
 - Admin hooks are protected by admin-only auth.
 - Tests cover security and ownership boundaries.
 - Docs explain API, security, interfaces, logging, operations, and testing.
+
+## Builder Knowledge Update Gate
+
+After a service change is implemented, do not immediately rewrite builder-agent standards from the plan. First complete validation:
+
+1. Run contract/service tests and builds.
+2. Run `ceerat-builder check drift --output json`.
+3. Run `ceerat-builder check apps --output json` if app or AI surfaces changed.
+4. Confirm inventories describe the implemented surface.
+5. Ask for or receive human validation of the behavior.
+
+Only then update `.ceerat-agent` docs when the change establishes a reusable platform rule, ownership boundary, security rule, or cookbook pattern.
+
+Use `ceerat-builder docs <scope> --output json` to locate the relevant builder, service, inventory, and app documents.

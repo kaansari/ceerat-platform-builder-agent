@@ -61,6 +61,7 @@ Use `ceerat-user-service` when the module is tightly coupled to:
 - Users.
 - Customers.
 - Service catalog.
+- Product catalog.
 - Customer-service assignments.
 - Orders.
 - RBAC/admin management.
@@ -98,6 +99,18 @@ Full gRPC method format:
 ```text
 /package.Service/Method
 ```
+
+Current ownership example:
+
+```text
+/service.ServiceManager/CreateProduct
+/service.ServiceManager/GetProduct
+/service.ServiceManager/ListProducts
+/service.ServiceManager/UpdateProduct
+/service.ServiceManager/DeleteProduct
+```
+
+Product belongs to the current service catalog boundary. Prefer extending `service.ServiceManager` for product catalog behavior unless the inventory or requirements show a stronger owner.
 
 ## Backend Service Recipe
 
@@ -168,6 +181,7 @@ Repository rules:
 - Scope customer-owned reads/writes by authenticated user id.
 - Use transactions for multi-table writes.
 - Snapshot mutable catalog data into historical records when needed.
+- Apply visibility rules for catalog data, such as customer role seeing active products only.
 - Do not return password/token fields.
 - Do not let apps or agents bypass service APIs.
 
@@ -184,3 +198,28 @@ For a new service or major module, plan updates to:
 - New service cookbook if a new pattern is introduced.
 
 Do not plan frontend documentation from this agent unless the only need is to note caller compatibility impact.
+
+## Post-Validation Builder Knowledge Update
+
+The builder-agent should update its own durable documents only after implementation is validated.
+
+Required order:
+
+1. Implement the contract/service/database/security change.
+2. Run the relevant tests and build commands.
+3. Run builder checks such as `ceerat-builder check drift --output json` and `ceerat-builder check apps --output json` when app surfaces are involved.
+4. Get human validation that the behavior and ownership are correct.
+5. Update service docs and inventories to match the final implementation.
+6. Update `.ceerat-agent` standards only when the change teaches the builder a reusable platform rule or ownership decision.
+
+Use this helper to locate docs:
+
+```bash
+ceerat-builder docs all --output json
+ceerat-builder docs builder --output json
+ceerat-builder docs service --output json
+ceerat-builder docs inventory --output json
+ceerat-builder docs apps --output json
+```
+
+Do not update builder standards from a speculative plan. The standards are memory for validated platform behavior, not a scratchpad for ideas.

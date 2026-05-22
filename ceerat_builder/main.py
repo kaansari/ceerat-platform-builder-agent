@@ -1501,7 +1501,18 @@ def _verification_contract_and_service_payload(target: str) -> Dict[str, Any]:
             "Check logs for startup, migration, RBAC seed, and registration errors.",
             "Confirm inventories describe the final implemented surface.",
         ],
+        "post_human_validation_checklist": _post_validation_checklist(),
     }
+
+
+def _post_validation_checklist() -> List[str]:
+    return [
+        "Only after tests pass and a human validates behavior, update builder-agent standards if the platform pattern changed.",
+        "Update .ceerat-agent docs for durable builder knowledge: architecture, module-generation-standard, service-standards, security-rbac-standard, ai-tool-standard when relevant.",
+        "Update service docs for user-facing truth: api.md, api-testing.md, grpc-security.md, logging.md, architecture.md, and cookbook docs when relevant.",
+        "Update inventories that describe the final surface: contract-inventory.json, grpc-service-inventory.json, app-surface-inventory.json when relevant.",
+        "Run ceerat-builder check drift --output json and ceerat-builder check apps --output json after doc/inventory updates.",
+    ]
 
 
 def _drift_payload(project_root: Path) -> Dict[str, Any]:
@@ -1531,6 +1542,141 @@ def _drift_payload(project_root: Path) -> Dict[str, Any]:
             "contracts inventory methods vs services inventory methods",
             "contracts inventory services vs services inventory services",
         ],
+    }
+
+
+def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
+    scope = scope.lower().strip()
+    workspace = _workspace_root(project_root)
+    docs = {
+        "builder": [
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/architecture.md",
+                "purpose": "Platform/service-builder architecture context.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/module-generation-standard.md",
+                "purpose": "Service module planning and ownership standards.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/service-standards.md",
+                "purpose": "Detailed backend service implementation standards.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/security-rbac-standard.md",
+                "purpose": "JWT/RBAC/ownership standards.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/ai-tool-standard.md",
+                "purpose": "AI tool and platform client standards.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/domain-requirements.json",
+                "purpose": "Explicit domain requirements that should not be inferred by the builder.",
+            },
+        ],
+        "service": [
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/api.md",
+                "purpose": "Focused gRPC/admin HTTP API reference.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/api-testing.md",
+                "purpose": "grpcurl/curl testing guide.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/grpc-security.md",
+                "purpose": "gRPC auth, RBAC, ownership, and public method behavior.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/logging.md",
+                "purpose": "Structured logging and business event guidance.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/architecture.md",
+                "purpose": "50,000 foot platform/service architecture.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/ceerat-user-service-architecture.md",
+                "purpose": "Detailed user-service architecture.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/ceerat-user-service-architecture.html",
+                "purpose": "HTML visual architecture companion.",
+            },
+            {
+                "path": "services-repo/services/ceerat-user-service/docs/new-service-cookbook.md",
+                "purpose": "Recipe for creating or extending services.",
+            },
+        ],
+        "inventory": [
+            {
+                "path": "contracts-repo/docs/contract-inventory.json",
+                "purpose": "Contract/proto/security inventory.",
+            },
+            {
+                "path": "services-repo/docs/grpc-service-inventory.json",
+                "purpose": "Backend gRPC service inventory.",
+            },
+            {
+                "path": "apps-repo/docs/app-surface-inventory.json",
+                "purpose": "App handlers/templates/static/chat/AI tool inventory.",
+            },
+        ],
+        "apps": [
+            {
+                "path": "apps-repo/docs/app-surface-inventory.json",
+                "purpose": "App surface source of truth.",
+            },
+            {
+                "path": "apps-repo/apps/ceerat-admin-ui/docs/admin-ui-architecture.html",
+                "purpose": "Admin UI architecture.",
+            },
+            {
+                "path": "apps-repo/apps/ceerat-customer-ui/docs/customer-ui-architecture.html",
+                "purpose": "Customer UI architecture.",
+            },
+            {
+                "path": "apps-repo/apps/ceerat-web-ui/docs/web-ui-architecture.html",
+                "purpose": "Web UI architecture when present.",
+            },
+            {
+                "path": "apps-repo/ai/docs/ai-chat-architecture.md",
+                "purpose": "AI chat architecture.",
+            },
+            {
+                "path": "apps-repo/ai/docs/agent-tools.md",
+                "purpose": "AI tool inventory and behavior.",
+            },
+        ],
+    }
+    aliases = {
+        "all": ["builder", "service", "inventory", "apps"],
+        "builder-agent": ["builder"],
+        "services": ["service"],
+        "service-docs": ["service"],
+        "inventories": ["inventory"],
+        "app": ["apps"],
+    }
+    selected = aliases.get(scope, [scope])
+    unknown = [item for item in selected if item not in docs]
+    if unknown:
+        raise ContextError("Unknown docs scope. Use all, builder, service, inventory, or apps.")
+    resolved: List[Dict[str, Any]] = []
+    for key in selected:
+        for doc in docs[key]:
+            abs_path = workspace / doc["path"]
+            resolved.append({
+                **doc,
+                "scope": key,
+                "exists": abs_path.exists(),
+                "absolute_path": str(abs_path),
+            })
+    return {
+        "scope": scope,
+        "purpose": "Relevant Ceerat documentation locations for Codex/builder workflows.",
+        "post_human_validation_checklist": _post_validation_checklist(),
+        "docs": resolved,
     }
 
 
@@ -1762,6 +1908,7 @@ def _codex_context_payload(project_root: Path) -> Dict[str, Any]:
             "ceerat-builder rbac check --output json",
             "ceerat-builder check drift --output json",
             "ceerat-builder plan --output json \"<request>\"",
+            "ceerat-builder docs service --output json",
         ],
         "app_discovery_commands": [
             "ceerat-builder app-context --output json",
@@ -1785,7 +1932,9 @@ def _codex_context_payload(project_root: Path) -> Dict[str, Any]:
             "Use builder output as factual context, not final design.",
             "Use requirements files for business/domain must-haves.",
             "Keep apps/AI inventory as caller compatibility only for service builder work.",
+            "Update builder-agent standards only after tests pass and a human validates behavior.",
         ],
+        "post_human_validation_checklist": _post_validation_checklist(),
     }
 
 
@@ -2039,6 +2188,35 @@ def inventory_patch_hints(
     table.add_row(payload["contract_inventory"]["path"], "\n".join(payload["contract_inventory"]["patch_sections"]))
     table.add_row(payload["service_inventory"]["path"], "\n".join(payload["service_inventory"]["patch_sections"]))
     table.add_row(payload["apps_inventory"]["path"], payload["apps_inventory"]["patch_when"])
+    console.print(table)
+
+
+@app.command("docs")
+def docs(
+    scope: str = typer.Argument("all", help="Docs scope: all, builder, service, inventory, or apps."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Return relevant docs for Codex/builder workflows and post-validation updates."""
+    output = output.lower().strip()
+    try:
+        payload = _docs_payload(project_root, scope)
+    except ContextError as exc:
+        error_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(code=2) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    if output != "table":
+        error_console.print("[bold red]Error:[/bold red] --output must be json or table")
+        raise typer.Exit(code=2)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Scope")
+    table.add_column("Path")
+    table.add_column("Purpose")
+    table.add_column("Exists")
+    for item in payload["docs"]:
+        table.add_row(item["scope"], item["path"], item["purpose"], str(item["exists"]))
     console.print(table)
 
 

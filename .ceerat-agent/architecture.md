@@ -85,7 +85,7 @@ Backend services
 | --- | --- | --- |
 | `infra` | Local stack start/stop, env wiring, process logs, PIDs, database startup | Apps, services, database |
 | `contracts-repo/packages/ceerat-contracts` | Protobuf contracts, generated clients/servers, domain DTOs, mappers, shared security hooks | No app/service/db dependency |
-| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service catalog, orders, patients, RBAC, admin HTTP | Contracts, PostgreSQL |
+| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, patients, RBAC, admin HTTP | Contracts, PostgreSQL |
 | PostgreSQL OLTP | Source of truth for transactional records | Owned by backend services |
 | Future BI database | Business events, rollups, AI insights, executive recommendations | Receives copied/evented data |
 
@@ -116,6 +116,7 @@ It owns:
 - User accounts.
 - Customer profiles.
 - Service catalog records.
+- Product catalog records.
 - Customer-service assignments.
 - Orders and order service lines.
 - Patient records.

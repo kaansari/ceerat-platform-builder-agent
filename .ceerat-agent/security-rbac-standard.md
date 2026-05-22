@@ -106,6 +106,8 @@ Examples:
 - Customer profile access checks `customers.user_id`.
 - Customer service assignments are filtered or denied by owner.
 - Order reads and writes are scoped by authenticated user id.
+- Product catalog reads are visibility-scoped: customer role can only read/list active products.
+- Product catalog writes are RBAC-scoped to admin/agent through `service.ServiceManager`.
 
 Handler pattern:
 
@@ -144,4 +146,3 @@ Referrer-Policy: same-origin
 ## Test Requirements
 
 Plans must include tests for missing token, invalid token, RBAC denied, RBAC allowed, ownership denied, ownership allowed, admin-only routes, and AI tool permission behavior when tools are involved.
-
