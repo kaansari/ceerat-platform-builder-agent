@@ -105,8 +105,10 @@ Examples:
 - Customer cannot list all customers.
 - Customer profile access checks `customers.user_id`.
 - Customer service assignments are filtered or denied by owner.
+- Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
 - Order reads and writes are scoped by authenticated user id.
 - Product catalog reads are visibility-scoped: customer role can only read/list active products.
+- Cart product items are visibility-scoped: customer role can add active products only.
 - Product catalog writes are RBAC-scoped to admin/agent through `service.ServiceManager`.
 
 Handler pattern:
@@ -123,6 +125,14 @@ Repository pattern:
 ```text
 WHERE id = ? AND user_id = ?
 ```
+
+Cart ownership pattern:
+
+```text
+authenticated user id -> customers.user_id -> customer_id -> cart
+```
+
+Do not trust a customer-supplied `customer_id` for cart reads or writes. For customer role, either ignore the blank value and resolve ownership from context, or deny when the supplied `customer_id` differs from the authenticated user's customer profile.
 
 ## Admin HTTP Rules
 

@@ -182,7 +182,7 @@ Current service API areas in `ceerat-user-service`:
 | --- | --- | --- |
 | Auth | `proto/auth` | Users, login, registration, token validation, profile/password changes. |
 | Customer | `proto/customer` | Customer profiles and customer ownership flows. |
-| Service Manager | `proto/service` | Service catalog, product catalog, and customer-service assignments. |
+| Service Manager | `proto/service` | Service catalog, product catalog, customer carts, and customer-service assignments. |
 | Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
 | Patient | `proto/patient` | Simple patient CRUD and compatibility placeholders. |
 
@@ -326,8 +326,10 @@ Customer-owned data must be scoped to the authenticated user. Examples:
 - Customer users can only get/update their own user profile.
 - Customer users cannot list all customers.
 - Customer profile access is checked against `customers.user_id`.
+- Customer cart access resolves the authenticated user to its own customer profile and denies another `customer_id`.
 - Customer service assignments are filtered or denied if they belong to another customer.
 - Order reads and writes are scoped by authenticated user id.
+- Product catalog reads are visibility scoped: customer role can only read/list/add active products.
 
 `JWT_AUTH_ENABLED=false`, `0`, or `no` disables JWT/RBAC and should only be used for local troubleshooting.
 
@@ -358,6 +360,7 @@ Model rules:
 - Add explicit indexes for lookup paths used by handlers.
 - Use unique constraints for natural uniqueness, such as email or order number.
 - Use foreign keys where ownership is stable.
+- Use nullable foreign keys for optional either/or relationships. Example: a cart item may reference either a service row or a product row, so the unused FK must be `NULL`, not an empty string.
 - Keep password/token fields out of response mapping.
 - Snapshot mutable catalog data into historical records when needed.
 
@@ -366,6 +369,7 @@ Repository rules:
 - Validate required IDs before querying.
 - Scope customer-owned reads and writes by authenticated user id.
 - Use transactions for multi-table writes.
+- Recalculate totals inside the same transaction that adds, updates, removes, or clears line items.
 - Keep protobuf mapping outside the repository where practical.
 - Return errors handlers can map to gRPC-friendly statuses.
 
@@ -506,6 +510,25 @@ service.ServiceManager/ListProducts
 ```
 
 Product catalog methods are owned by `service.ServiceManager`. Customer role can read/list active products only; admin and agent roles can create, update, and delete products.
+
+Cart methods are owned by `service.ServiceManager`:
+
+```text
+service.ServiceManager/GetCart
+service.ServiceManager/AddCartItem
+service.ServiceManager/UpdateCartItem
+service.ServiceManager/RemoveCartItem
+service.ServiceManager/ClearCart
+```
+
+Cart smoke tests should cover:
+
+- Customer can get its own cart without passing `customer_id`.
+- Customer cannot pass another `customer_id`.
+- Customer can add active product items and service items.
+- Customer cannot add inactive products.
+- Update, remove, and clear recalculate totals.
+- `carts` and `cart_items` migrate successfully against PostgreSQL.
 
 Alternative token header:
 

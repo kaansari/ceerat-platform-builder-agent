@@ -108,9 +108,16 @@ Current ownership example:
 /service.ServiceManager/ListProducts
 /service.ServiceManager/UpdateProduct
 /service.ServiceManager/DeleteProduct
+/service.ServiceManager/GetCart
+/service.ServiceManager/AddCartItem
+/service.ServiceManager/UpdateCartItem
+/service.ServiceManager/RemoveCartItem
+/service.ServiceManager/ClearCart
 ```
 
 Product belongs to the current service catalog boundary. Prefer extending `service.ServiceManager` for product catalog behavior unless the inventory or requirements show a stronger owner.
+
+Cart is also validated as part of the current `service.ServiceManager` boundary because it is a customer-owned workflow over service catalog and product catalog items. Prefer extending this service for cart-style service/product selection behavior unless the inventory shows a new checkout/order owner.
 
 ## Backend Service Recipe
 
@@ -182,6 +189,8 @@ Repository rules:
 - Use transactions for multi-table writes.
 - Snapshot mutable catalog data into historical records when needed.
 - Apply visibility rules for catalog data, such as customer role seeing active products only.
+- For either/or relationships, such as a cart item referencing either a service or a product, use nullable foreign keys for the optional side. Do not store empty strings in unused FK columns.
+- Recalculate cart/order totals inside the same transaction that changes line items.
 - Do not return password/token fields.
 - Do not let apps or agents bypass service APIs.
 

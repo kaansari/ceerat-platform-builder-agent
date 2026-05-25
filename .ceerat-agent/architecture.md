@@ -117,6 +117,7 @@ It owns:
 - Customer profiles.
 - Service catalog records.
 - Product catalog records.
+- Customer carts and cart items for services/products.
 - Customer-service assignments.
 - Orders and order service lines.
 - Patient records.
@@ -134,6 +135,12 @@ service.ServiceManager
 order.OrderManager
 patient.patient
 ```
+
+Validated ownership rule:
+
+- Product catalog and Cart capabilities belong to `service.ServiceManager` unless a future inventory shows a stronger owner.
+- Cart is a customer-owned workflow over service/product catalog items. Customer callers are resolved to their own `customers.user_id` profile and cannot choose another `customer_id`.
+- Admin/agent callers may inspect or manage carts only through protected service APIs and explicit customer context.
 
 ## Contracts Boundary
 
