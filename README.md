@@ -129,6 +129,7 @@ ceerat-builder requirements invoice --output json
 ceerat-builder evidence request "create invoice service" --output json
 ceerat-builder evidence model Product --output json
 ceerat-builder impact contract service.ServiceManager --add Product --output json
+ceerat-builder impact contract patient.patient --remove Patient --output json
 ceerat-builder rbac suggest service.ServiceManager --capability Product --output json
 ceerat-builder rbac check --output json
 ceerat-builder proto-commands service --output json
@@ -149,6 +150,7 @@ Useful command roles:
 
 - `decide-owner` answers "should this extend an existing service or create a new one?" from inventory evidence.
 - `impact contract` lists the contract, generated code, mapper, security, service, and inventory surfaces likely touched by a gRPC change.
+- `impact contract --remove` returns a removal packet for legacy capabilities: proto/generated files, domain models, mappers, security methods, service wiring, inventories, docs, search terms, and safe verification commands. It never deletes files or drops database tables.
 - `rbac suggest` gives method-level role defaults for a target/capability; `rbac check` compares contracts, service inventory, known methods, public methods, and default role permissions.
 - `evidence model` finds existing proto messages, domain models, mapper functions, and service methods for a model name.
 - `proto-commands` returns the contract generation/test/build commands.

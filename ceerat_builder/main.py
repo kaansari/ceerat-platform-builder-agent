@@ -1202,11 +1202,15 @@ def _decision_payload(project_root: Path, request: str) -> Dict[str, Any]:
     }
 
 
-def _contract_impact_payload(project_root: Path, target: str, add: Optional[str]) -> Dict[str, Any]:
+def _contract_impact_payload(project_root: Path, target: str, add: Optional[str], remove: Optional[str]) -> Dict[str, Any]:
     inventories = _load_inventories(project_root)
     contract = _find_contract_service(inventories, target)
     service = _find_service_inventory(inventories, target)
     full_service = contract.get("service", {}).get("full_service", target) if contract else target
+    if add and remove:
+        raise ContextError("Use either --add or --remove, not both.")
+    if remove:
+        return _contract_remove_impact_payload(inventories, target, remove, contract, service, full_service, project_root)
     capability = _pascal(add or "Capability")
     rpc_names = [
         f"Create{capability}",
@@ -1252,6 +1256,139 @@ def _contract_impact_payload(project_root: Path, target: str, add: Optional[str]
             "Regenerate proto outputs after editing .proto files.",
             "Update RBAC before running protected methods locally.",
             "Update both contract and service inventories after the implementation is settled.",
+        ],
+    }
+
+
+def _contract_remove_impact_payload(
+    inventories: Dict[str, Any],
+    target: str,
+    remove: str,
+    contract: Optional[Dict[str, Any]],
+    service: Optional[Dict[str, Any]],
+    full_service: str,
+    project_root: Path,
+) -> Dict[str, Any]:
+    capability = _pascal(remove)
+    capability_words = set(_words(remove))
+    capability_terms = {capability.lower(), f"{capability.lower()}s"}
+    target_words = set(_words(target))
+    package_name = contract.get("package", "") if contract else (target.split(".")[0] if "." in target else target)
+    service_name = contract.get("service", {}).get("name", "") if contract else target.split(".")[-1]
+    service_words = set(_words(" ".join([package_name, service_name, full_service])))
+    whole_service_removal = bool(capability_words and capability_words <= service_words)
+
+    existing_rpcs = contract.get("service", {}).get("rpcs", []) if contract else []
+    methods_to_remove: List[Dict[str, Any]] = []
+    for rpc in existing_rpcs:
+        rpc_text = " ".join([
+            rpc.get("name", ""),
+            rpc.get("full_method", ""),
+            rpc.get("request", ""),
+            rpc.get("response", ""),
+        ]).lower()
+        if whole_service_removal or any(term in rpc_text for term in capability_terms):
+            methods_to_remove.append(rpc)
+
+    generated_files = contract.get("generated_files", []) if contract else []
+    proto_path = contract.get("proto_path", "") if contract else ""
+    if not proto_path and package_name:
+        proto_path = f"contracts-repo/packages/ceerat-contracts/proto/{package_name}/{package_name}.proto"
+    if not generated_files and package_name:
+        generated_files = [
+            f"contracts-repo/packages/ceerat-contracts/proto/{package_name}/{package_name}.pb.go",
+            f"contracts-repo/packages/ceerat-contracts/proto/{package_name}/{package_name}_grpc.pb.go",
+        ]
+
+    domain_models = inventories["contracts"].get("domain_models", [])
+    mapper_functions = inventories["contracts"].get("mapper_functions", [])
+    matched_domain_models = [
+        item for item in domain_models
+        if any(term in item.get("name", "").lower() for term in capability_terms)
+    ]
+    matched_mapper_functions = [
+        name for name in mapper_functions
+        if any(term in name.lower() for term in capability_terms)
+    ]
+    known_methods = inventories["contracts"].get("security_contracts", {}).get("known_grpc_methods", [])
+    security_methods_to_remove = [
+        method for method in known_methods
+        if method.startswith(f"/{full_service}/") and (whole_service_removal or capability.lower() in method.lower())
+    ]
+
+    implementation_package = service.get("implementation_package", "") if service else ""
+    if not implementation_package and package_name:
+        implementation_package = f"services-repo/services/ceerat-user-service/{package_name}s"
+
+    return {
+        "target": target,
+        "operation": "remove",
+        "capability": remove,
+        "contract_found": contract is not None,
+        "service_found": service is not None,
+        "full_service": full_service,
+        "whole_service_removal": whole_service_removal,
+        "existing_rpcs": existing_rpcs,
+        "expected_removed_contract_surface": {
+            "proto_path": proto_path,
+            "generated_files": generated_files,
+            "rpc_methods": methods_to_remove,
+            "security_methods": security_methods_to_remove,
+            "domain_models": matched_domain_models,
+            "mapper_functions": matched_mapper_functions,
+            "field_policy": "Do not remove similarly named fields from unrelated domains without direct evidence.",
+        },
+        "files_to_consider": [
+            proto_path or "contracts-repo/packages/ceerat-contracts/proto",
+            *generated_files,
+            "contracts-repo/packages/ceerat-contracts/Makefile",
+            "contracts-repo/packages/ceerat-contracts/README.md",
+            "contracts-repo/packages/ceerat-contracts/domain/models.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper.go",
+            "contracts-repo/packages/ceerat-contracts/mapper/mapper_test.go",
+            "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go",
+            "contracts-repo/packages/ceerat-contracts/security/allowlist.go",
+            "contracts-repo/docs/contract-inventory.json",
+            implementation_package or "services-repo/services/ceerat-user-service",
+            "services-repo/services/ceerat-user-service/main.go",
+            "services-repo/services/ceerat-user-service/internal/models/models.go",
+            "services-repo/docs/grpc-service-inventory.json",
+            "services-repo/services/ceerat-user-service/docs",
+            "apps-repo/docs",
+            "apps-repo/docs/app-surface-inventory.json",
+        ],
+        "search_terms": sorted({
+            remove,
+            capability,
+            capability.lower(),
+            package_name,
+            full_service,
+            f"/{full_service}/",
+            f"{capability}Entity",
+            f"Register{capability}",
+            f"{capability}Server",
+        }),
+        "removal_steps": [
+            "Search all repos with the search_terms before deleting files.",
+            "Remove the proto file and generated Go files only for the target capability/service.",
+            "Remove contract domain models, mapper functions, mapper tests, and proto generation references.",
+            "Remove KnownGRPCMethods, public allowlist entries if present, and default role permissions for removed methods.",
+            "Remove service implementation package, model/entity mappings, AutoMigrate registration, repository construction, and gRPC server registration.",
+            "Update contract and service inventories after the implemented surface is settled.",
+            "Update focused docs and README references. Do not update .ceerat-agent standards until tests pass and a human validates the removal.",
+            "Do not drop live database tables in this workflow. Document orphaned legacy tables for a later explicit migration decision.",
+        ],
+        "commands": [
+            *_proto_commands_payload(project_root, full_service)["commands"],
+            {"command": "go test ./...", "workdir": "services-repo/services/ceerat-user-service", "purpose": "Run service tests after service removal."},
+            {"command": "go build ./...", "workdir": "services-repo/services/ceerat-user-service", "purpose": "Compile service packages after service removal."},
+            {"command": "ceerat-builder check drift --output json", "workdir": "ceerat-platform-builder-agent", "purpose": "Confirm contract/service inventory and RBAC drift is clean."},
+            {"command": "ceerat-builder check apps --output json", "workdir": "ceerat-platform-builder-agent", "purpose": "Confirm app inventory references still point to existing files."},
+        ],
+        "warnings": [
+            "This is an impact packet, not a destructive command. The builder does not delete files.",
+            "If contract_found=false, the capability may already be removed or the target name may not match inventory.",
+            "Database table removal requires a separate explicit migration/drop approval.",
         ],
     }
 
@@ -2066,16 +2203,17 @@ def impact(
     kind: str = typer.Argument(..., help="Impact kind. Currently: contract."),
     target: str = typer.Argument(..., help="Target service, such as service.ServiceManager."),
     add: Optional[str] = typer.Option(None, "--add", help="Optional capability/model being added."),
+    remove: Optional[str] = typer.Option(None, "--remove", help="Optional capability/model/service being removed."),
     output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
     project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
 ) -> None:
-    """Return files and surfaces likely impacted by a service contract change."""
+    """Return files and surfaces likely impacted by a service contract add/remove."""
     output = output.lower().strip()
     if kind.lower().strip() != "contract":
         error_console.print("[bold red]Error:[/bold red] impact kind must be contract")
         raise typer.Exit(code=2)
     try:
-        payload = _contract_impact_payload(project_root, target, add)
+        payload = _contract_impact_payload(project_root, target, add, remove)
     except (ContextError, json.JSONDecodeError) as exc:
         error_console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -2088,6 +2226,7 @@ def impact(
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Area")
     table.add_column("Value")
+    table.add_row("Operation", payload.get("operation", "add"))
     table.add_row("Full service", payload["full_service"])
     table.add_row("Files", "\n".join(payload["files_to_consider"]))
     console.print(table)
