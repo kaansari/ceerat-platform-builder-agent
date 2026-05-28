@@ -133,9 +133,12 @@ Use this ownership when requirements involve companies, jobs, skill profiles, re
 Career caller coordination rules:
 
 - Agent-facing career administration belongs in `ceerat-web-ui`.
+- Customer-facing career self-service belongs in `ceerat-customer-ui` and uses `/customer/career...` pages plus `/api/customer/career...` API bridges.
 - Admin UI should not become the career operations workspace; keep it focused on user/security/RBAC/system administration.
 - AI career tools belong in `apps-repo/ai/ceerat-agent-service` and must call backend Career RPCs through the platform gRPC client.
 - Company/job/application natural-language requests must resolve real IDs through list/get/search tools before mutation.
+- Customer Career callers can create skill profiles, add skills, create/list resumes, search open jobs, manage a job cart, apply to jobs, apply to cart jobs, and list/view their own applications.
+- Customer Career callers must not create companies/jobs, review all applications, or update application status.
 
 ## Backend Service Recipe
 

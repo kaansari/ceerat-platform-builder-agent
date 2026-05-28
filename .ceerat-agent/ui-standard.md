@@ -25,14 +25,32 @@ If a new app surface is added, update the inventory in the same change.
 | --- | --- | --- |
 | Admin UI | Admin users, roles, permissions, RBAC cache, operational controls | User service admin HTTP API |
 | Web UI | Authenticated operational app, dashboard, orders, agent Career pages, AI Agent panel, full-page `/chatgpt-client/` | User service gRPC, agent service HTTP |
-| Customer UI | Customer registration and self-service workflows | User service gRPC |
+| Customer UI | Customer registration, profile/orders, customer Career self-service, and customer AI chat workflows | User service gRPC, agent service HTTP |
 
 Validated ownership:
 
 - Career administration belongs in the agent-facing `ceerat-web-ui`, not in the admin/security UI.
+- Customer Career self-service belongs in `ceerat-customer-ui`, not in admin UI or agent-facing `ceerat-web-ui`.
 - Admin UI remains focused on users, roles, RBAC, security, cache refresh, and system operations.
 - Agent Career pages use same-origin web endpoints under `/api/agent/career/*`; the web app forwards the session JWT to `career.JobService` and `career.JobApplicationService`.
+- Customer Career pages use same-origin customer endpoints under `/api/customer/career/*`; the customer app forwards the session JWT to `career.CareerProfileService`, `career.JobService`, `career.JobCartService`, and `career.JobApplicationService`.
+- Customer Career pages are:
+  - `/customer/career`
+  - `/customer/career/profiles`
+  - `/customer/career/resumes`
+  - `/customer/career/jobs`
+  - `/customer/career/cart`
+  - `/customer/career/applications`
 - The placeholder `/agent/career/imports` surface exists for future CSV/import/scraper work. Future import workers should create companies/jobs through backend APIs, not direct database writes.
+
+Customer Career rules:
+
+- Customers can manage their own skill profiles, profile skills, resumes, job cart, and job applications.
+- Customers can search and view open jobs.
+- Customers cannot create companies, create jobs, review all applications, or update application status.
+- Customer identity must be derived by backend Career services from the authenticated JWT and `customers.user_id`; UI requests must not send or trust arbitrary `customer_id` values.
+- The browser must call only same-origin customer UI routes. The app server forwards the JWT to backend gRPC.
+- Update `apps-repo/docs/app-surface-inventory.json` whenever customer Career routes, templates, static files, or API bridges change.
 
 ## Browser/API Boundary
 
@@ -81,8 +99,9 @@ Supported web AI chat surfaces:
 
 - Dashboard AI Agent panel using `POST /api/agent/chat`.
 - Full-page chat UI at `GET /chatgpt-client/`, served from `apps/ceerat-web-ui/web/chatgpt-client`.
+- Customer UI full-page chat at `GET /chatgpt-client/`, served from `apps/ceerat-customer-ui/web/chatgpt-client`.
 
-Both must forward through `ceerat-web-ui` to `ceerat-agent-service`; neither should call OpenAI directly.
+Chat surfaces must forward through their owning app server to `ceerat-agent-service`; browser assets must not call OpenAI directly.
 
 ## Admin and Executive Intelligence UI
 
