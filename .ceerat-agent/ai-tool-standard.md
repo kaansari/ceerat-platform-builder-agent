@@ -176,6 +176,16 @@ The current tools are intentionally small. Preserve their names unless there is 
 | `update_order_status` | Mutation | Update an order status. | `order.OrderManager/UpdateOrderStatus` |
 | `add_service_to_order` | Mutation | Add an existing service line to an existing order. | `order.OrderManager/AddServiceToOrder` |
 | `remove_service_from_order` | Mutation | Remove a service line from an order. | `order.OrderManager/RemoveServiceFromOrder` |
+| `create_company` | Mutation | Create a global career company. | `career.JobService/CreateCompany` |
+| `list_companies` | Read | List or keyword-search global career companies. | `career.JobService/ListCompanies` |
+| `get_company` | Read | Get one career company by ID. | `career.JobService/GetCompany` |
+| `update_company` | Mutation | Update a global career company. | `career.JobService/UpdateCompany` |
+| `create_job` | Mutation | Create a global career job for an existing company. | `career.JobService/CreateJob` |
+| `search_jobs` | Read | Search global career jobs. | `career.JobService/SearchJobs` |
+| `get_job` | Read | Get one career job by ID. | `career.JobService/GetJob` |
+| `close_job` | Mutation | Close a career job. | `career.JobService/CloseJob` |
+| `list_applications_for_job` | Read | List applications submitted to a job. | `career.JobApplicationService/ListApplications` |
+| `update_application_status` | Mutation | Update a job application status. | `career.JobApplicationService/UpdateApplicationStatus` |
 
 Current input behavior:
 
@@ -190,6 +200,15 @@ Current input behavior:
 - `update_order_status` requires `order_id` and `status`.
 - `add_service_to_order` requires `order_id` and `service_id`; service details may include quantity, agent name, schedule/start/due dates.
 - `remove_service_from_order` requires `order_id` and `order_service_id`.
+- `create_company` requires `name`; website, industry, description, location, source, source URL, and external ID are optional.
+- `list_companies` accepts optional `keyword` and `source`. Company keyword search should cover practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL.
+- `get_company` requires `company_id`.
+- `update_company` requires `company_id`; supplied fields are forwarded to the backend company update RPC.
+- `create_job` requires `company_id`, `title`, and `description`; status defaults to `open` and source defaults to `manual` when not provided.
+- `search_jobs` accepts optional keyword, company ID, location, remote type, employment type, status, and source.
+- `get_job` and `close_job` require `job_id`.
+- `list_applications_for_job` requires `job_id` and accepts optional application status.
+- `update_application_status` requires `application_id` and status. Expected statuses include `submitted`, `reviewing`, `interview`, `rejected`, `offered`, and `withdrawn`.
 
 Current output behavior:
 
@@ -199,6 +218,9 @@ Current output behavior:
 - Service reads return `{"services": [...]}`.
 - Assignment mutations return `{"customer_service": ...}`.
 - Order reads/mutations return `{"order": ...}` or `{"orders": [...]}`.
+- Company reads/mutations return `{"company": ...}` or `{"companies": [...]}`.
+- Job reads/mutations return `{"job": ...}` or `{"jobs": [...]}`.
+- Application reads/mutations return `{"application": ...}` or `{"applications": [...]}`.
 
 ## Platform gRPC Client Standard
 
@@ -219,6 +241,8 @@ platform.Client
   customers customer.CustomerServiceClient
   services  service.ServiceManagerClient
   orders    order.OrderManagerClient
+  jobs      career.JobServiceClient
+  apps      career.JobApplicationServiceClient
 ```
 
 Current session structure:
@@ -349,6 +373,10 @@ For example:
 - Before assigning a service to a customer, resolve the customer and service through list/get APIs if the user supplied names instead of IDs.
 - Before creating an order, resolve every requested service to a real `service_id`.
 - Before removing an order service line, get the order first if the user refers to a service line by name or description.
+- If the user asks for companies, use `list_companies`.
+- Before creating a career job from a company name, use `list_companies` to resolve the company. If multiple companies match, ask the user to choose.
+- Before closing a career job from a title, use `search_jobs` to resolve the job. If multiple jobs match, ask the user to choose.
+- Before updating an application status from a natural language applicant/job reference, use job/application list APIs to resolve a real `application_id`.
 
 The model may explain what it is doing, but the mutation must use real platform IDs from service APIs.
 

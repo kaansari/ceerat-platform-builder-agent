@@ -64,8 +64,8 @@ Use `ceerat-user-service` when the module is tightly coupled to:
 - Product catalog.
 - Customer-service assignments.
 - Orders.
+- Career companies, jobs, skill profiles, resumes, job carts, and job applications.
 - RBAC/admin management.
-- Patient records.
 
 Propose a new backend service only when the domain has clear independent ownership, separate scaling/security needs, or its own persistence lifecycle.
 
@@ -118,6 +118,24 @@ Current ownership example:
 Product belongs to the current service catalog boundary. Prefer extending `service.ServiceManager` for product catalog behavior unless the inventory or requirements show a stronger owner.
 
 Cart is also validated as part of the current `service.ServiceManager` boundary because it is a customer-owned workflow over service catalog and product catalog items. Prefer extending this service for cart-style service/product selection behavior unless the inventory shows a new checkout/order owner.
+
+Career is validated as a `proto/career` module inside `ceerat-user-service`, not a standalone service. It owns:
+
+```text
+/career.CareerProfileService/*
+/career.JobService/*
+/career.JobCartService/*
+/career.JobApplicationService/*
+```
+
+Use this ownership when requirements involve companies, jobs, skill profiles, resumes, job carts, or job applications unless the inventories show a newer owner.
+
+Career caller coordination rules:
+
+- Agent-facing career administration belongs in `ceerat-web-ui`.
+- Admin UI should not become the career operations workspace; keep it focused on user/security/RBAC/system administration.
+- AI career tools belong in `apps-repo/ai/ceerat-agent-service` and must call backend Career RPCs through the platform gRPC client.
+- Company/job/application natural-language requests must resolve real IDs through list/get/search tools before mutation.
 
 ## Backend Service Recipe
 

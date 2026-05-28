@@ -85,7 +85,7 @@ Backend services
 | --- | --- | --- |
 | `infra` | Local stack start/stop, env wiring, process logs, PIDs, database startup | Apps, services, database |
 | `contracts-repo/packages/ceerat-contracts` | Protobuf contracts, generated clients/servers, domain DTOs, mappers, shared security hooks | No app/service/db dependency |
-| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, patients, RBAC, admin HTTP | Contracts, PostgreSQL |
+| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, career, RBAC, admin HTTP | Contracts, PostgreSQL |
 | PostgreSQL OLTP | Source of truth for transactional records | Owned by backend services |
 | Future BI database | Business events, rollups, AI insights, executive recommendations | Receives copied/evented data |
 
@@ -120,7 +120,7 @@ It owns:
 - Customer carts and cart items for services/products.
 - Customer-service assignments.
 - Orders and order service lines.
-- Patient records.
+- Career companies, jobs, skill profiles, resumes, job carts, and job applications.
 - RBAC roles and gRPC method permissions.
 - Admin HTTP management API.
 - GORM entities and migrations.
@@ -133,7 +133,10 @@ auth.Auth
 customer.CustomerService
 service.ServiceManager
 order.OrderManager
-patient.patient
+career.CareerProfileService
+career.JobService
+career.JobCartService
+career.JobApplicationService
 ```
 
 Validated ownership rule:
@@ -141,6 +144,11 @@ Validated ownership rule:
 - Product catalog and Cart capabilities belong to `service.ServiceManager` unless a future inventory shows a stronger owner.
 - Cart is a customer-owned workflow over service/product catalog items. Customer callers are resolved to their own `customers.user_id` profile and cannot choose another `customer_id`.
 - Admin/agent callers may inspect or manage carts only through protected service APIs and explicit customer context.
+- Career capability belongs to `ceerat-user-service` under `proto/career`.
+- Career company and job records are global operational data for agent/admin workflows, not per-agent-owned records.
+- Customer career profile, resume, job cart, and application methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`. Customer callers must not be trusted to submit arbitrary `customer_id` values.
+- Agent-facing career administration belongs in `ceerat-web-ui`; admin UI remains focused on users, roles, RBAC, security, and system administration.
+- AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs.
 
 ## Contracts Boundary
 
@@ -150,7 +158,7 @@ Validated ownership rule:
 proto/auth/
 proto/customer/
 proto/order/
-proto/patient/
+proto/career/
 proto/service/
 domain/
 mapper/

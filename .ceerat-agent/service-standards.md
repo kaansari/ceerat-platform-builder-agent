@@ -184,7 +184,7 @@ Current service API areas in `ceerat-user-service`:
 | Customer | `proto/customer` | Customer profiles and customer ownership flows. |
 | Service Manager | `proto/service` | Service catalog, product catalog, customer carts, and customer-service assignments. |
 | Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
-| Patient | `proto/patient` | Simple patient CRUD and compatibility placeholders. |
+| Career | `proto/career` | Companies, jobs, skill profiles, resumes, job carts, and job applications. |
 
 The service default gRPC address is:
 
@@ -529,6 +529,55 @@ Cart smoke tests should cover:
 - Customer cannot add inactive products.
 - Update, remove, and clear recalculate totals.
 - `carts` and `cart_items` migrate successfully against PostgreSQL.
+
+Career methods are owned by `proto/career` inside `ceerat-user-service`:
+
+```text
+career.CareerProfileService/CreateSkillProfile
+career.CareerProfileService/ListMySkillProfiles
+career.CareerProfileService/AddSkillToProfile
+career.CareerProfileService/CreateResume
+career.CareerProfileService/ListMyResumes
+career.JobService/CreateCompany
+career.JobService/ListCompanies
+career.JobService/GetCompany
+career.JobService/UpdateCompany
+career.JobService/CreateJob
+career.JobService/GetJob
+career.JobService/SearchJobs
+career.JobService/UpdateJob
+career.JobService/CloseJob
+career.JobService/ReopenJob
+career.JobCartService/GetJobCart
+career.JobCartService/AddJobToCart
+career.JobCartService/UpdateCartItemProfile
+career.JobCartService/RemoveJobFromCart
+career.JobCartService/ClearJobCart
+career.JobApplicationService/ApplyToJob
+career.JobApplicationService/ApplyToCartJobs
+career.JobApplicationService/ListMyApplications
+career.JobApplicationService/GetMyApplication
+career.JobApplicationService/ListApplications
+career.JobApplicationService/GetApplication
+career.JobApplicationService/UpdateApplicationStatus
+```
+
+Career ownership and security rules:
+
+- Companies and jobs are global operational records for agent/admin workflows.
+- Customer-owned career records include skill profiles, resumes, job carts, and applications.
+- Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Agent/admin job and application review workflows use protected Career RPCs. Apps and AI tools must not write directly to the database.
+- Company keyword search should support practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL.
+
+Career smoke tests should cover:
+
+- Customer ownership for skill profiles, resumes, cart, and applications.
+- RBAC denial for customer attempts to create companies/jobs or review all applications.
+- Agent/admin create/list/update company and create/search/update/close/reopen job.
+- Job search filters for keyword, company, status, source, location, employment type, and remote type.
+- Application list/update-status flows for agent/admin.
+- AI tool permission behavior when Career tools are involved.
 
 Alternative token header:
 
