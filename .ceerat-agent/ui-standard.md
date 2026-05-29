@@ -34,6 +34,8 @@ Validated ownership:
 - Admin UI remains focused on users, roles, RBAC, security, cache refresh, and system operations.
 - Agent Career pages use same-origin web endpoints under `/api/agent/career/*`; the web app forwards the session JWT to `career.JobService` and `career.JobApplicationService`.
 - Customer Career pages use same-origin customer endpoints under `/api/customer/career/*`; the customer app forwards the session JWT to `career.CareerProfileService`, `career.JobService`, `career.JobCartService`, and `career.JobApplicationService`.
+- `ceerat-web-ui` is an active-agent portal. Do not allow customer/admin sessions to use agent-only pages or agent chat routes.
+- `ceerat-customer-ui` is an active-customer portal. Do not allow agent/admin sessions to use customer-only pages, customer career routes, or customer chat routes.
 - Customer Career pages are:
   - `/customer/career`
   - `/customer/career/profiles`
@@ -76,8 +78,15 @@ Plans must preserve:
 
 - HttpOnly session cookies.
 - Authenticated page redirects.
+- Role/status checks at the app boundary for portal-specific apps.
 - Server-side JWT forwarding to gRPC or agent service.
 - Redaction of passwords, tokens, secrets, and keys in logs.
+
+Validated portal session rules:
+
+- Agent-facing `ceerat-web-ui` login/session must require `role == agent` and active status.
+- Customer-facing `ceerat-customer-ui` login/session must require `role == customer` and active status.
+- Backend services remain the security boundary, but app-level role checks prevent wrong-role sessions from reaching pages and AI chat surfaces where backend tools will correctly deny access.
 
 ## Workflow Checklist
 
@@ -102,6 +111,17 @@ Supported web AI chat surfaces:
 - Customer UI full-page chat at `GET /chatgpt-client/`, served from `apps/ceerat-customer-ui/web/chatgpt-client`.
 
 Chat surfaces must forward through their owning app server to `ceerat-agent-service`; browser assets must not call OpenAI directly.
+
+Validated customer chat route:
+
+```text
+ceerat-customer-ui /api/agent/chat
+ceerat-customer-ui /api/chatgpt-client/get-prompt-result
+  -> ceerat-agent-service /customer/chat
+  -> customer-safe tools only
+```
+
+Customer pages that support chat should include a visible chat launcher. If `/chatgpt-client/` works directly but the icon is missing, update the owning template before changing the chat backend.
 
 ## Admin and Executive Intelligence UI
 

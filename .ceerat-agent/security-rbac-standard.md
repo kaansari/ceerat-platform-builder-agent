@@ -104,6 +104,7 @@ Examples:
 - Customer can only read/update its own user profile.
 - Customer cannot list all customers.
 - Customer profile access checks `customers.user_id`.
+- Customer Career profile, resume, job cart, and application access resolves the authenticated user through `customers.user_id`; do not trust customer-supplied `customer_id`.
 - Customer service assignments are filtered or denied by owner.
 - Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
 - Order reads and writes are scoped by authenticated user id.
@@ -133,6 +134,19 @@ authenticated user id -> customers.user_id -> customer_id -> cart
 ```
 
 Do not trust a customer-supplied `customer_id` for cart reads or writes. For customer role, either ignore the blank value and resolve ownership from context, or deny when the supplied `customer_id` differs from the authenticated user's customer profile.
+
+AI customer tool ownership pattern:
+
+```text
+customer portal JWT -> auth user id -> customers.user_id -> customer-owned RPC
+```
+
+If a customer AI tool reports permission denied for a customer-owned action, check both layers:
+
+1. The portal session must be an active customer session.
+2. The backend method must remain protected by JWT, RBAC, and ownership checks.
+
+Do not "fix" customer AI permission errors by making methods public, widening customer RBAC beyond self-service, or allowing customer tools to accept arbitrary `customer_id`.
 
 ## Admin HTTP Rules
 

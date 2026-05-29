@@ -219,8 +219,10 @@ Rules:
 
 - Customer UI routes forward to `${CEERAT_AGENT_BASE_URL}/customer/chat`.
 - Customer UI stores the backend JWT in the HttpOnly `ceerat_session` cookie and forwards it to the agent service as `Authorization: Bearer <jwt>`.
+- Customer UI must accept only active `customer` sessions. Agent or admin users must not be allowed to keep a customer portal session, because customer-safe AI tools require customer ownership context and will correctly fail for non-customer roles.
 - Customer chat must expose only customer self-service tools.
 - Customer chat must not expose company/job administration, application review, all-customer listing, or agent/admin operations.
+- The customer portal home/profile page and other customer pages should expose the same chat launcher when customer chat is supported. If the full-page chat URL works but the icon is missing, check the owning template before changing AI service behavior.
 
 ## Existing Tool Implementation Files
 
@@ -325,7 +327,9 @@ platform.Client
   customers customer.CustomerServiceClient
   services  service.ServiceManagerClient
   orders    order.OrderManagerClient
+  profiles  career.CareerProfileServiceClient
   jobs      career.JobServiceClient
+  carts     career.JobCartServiceClient
   apps      career.JobApplicationServiceClient
 ```
 
@@ -363,6 +367,8 @@ User scoping rules:
 - Customer and order calls should pass `session.UserID` or the user ID extracted by `ValidateSession`.
 - Tools must not accept `user_id` from the model or browser for authenticated user-scoped operations.
 - If a protobuf request needs `UserId`, the platform client should set it from the session, not from free-form user input.
+- Customer-facing AI tools must use customer-owned RPCs that derive `customer_id` from the authenticated JWT by looking up `customers.user_id`; do not accept a model-supplied `customer_id`.
+- If customer tools return permission errors for `who am I`, `my profile`, `list my skills`, or similar customer-owned requests, first verify the logged-in portal session is an active customer. An active agent/admin token in `ceerat-customer-ui` is a portal-boundary bug, not an AI prompt/tool-selection problem.
 - Backend RBAC and repository ownership checks remain the final authority.
 
 Error handling rules:
@@ -391,6 +397,20 @@ HTTP /agent/chat
 ```
 
 The current implementation limits one chat request to four tool-calling rounds. Keep a bounded loop so a bad prompt, bad tool schema, or model confusion cannot create an unbounded backend operation.
+
+For customer chat, use the same loop with:
+
+```text
+HTTP /customer/chat
+  -> validate bearer token through platform.Client.ValidateSession
+  -> Agent.CustomerChat(session, session_id, message)
+  -> customer self-service system prompt
+  -> customerToolDefinitions()
+  -> ToolRunner.RunCustomer
+  -> backend gRPC services enforce JWT/RBAC/ownership
+```
+
+Do not route customer portal chat to `/agent/chat`. Do not expose agent/admin tools through `RunCustomer`.
 
 ## Tool Design Rules
 
@@ -476,6 +496,7 @@ Security invariants:
 - The agent service should validate the session once at the HTTP boundary and forward the same token to backend gRPC calls.
 - Backend services must still run JWT interceptors, RBAC checks, ownership checks, and repository scoping.
 - Admin-only tools must be separate from customer/user tools and must require explicit admin RBAC permissions.
+- App portals should reject wrong-role sessions before forwarding chat requests. `ceerat-web-ui` is active-agent-only; `ceerat-customer-ui` is active-customer-only. This avoids confusing AI responses caused by backend tools correctly denying the wrong role.
 - Destructive or high-impact tools should ask for confirmation unless the user request is already explicit and unambiguous.
 
 ## Local AI Stack Setup
@@ -487,6 +508,7 @@ PostgreSQL
 ceerat-user-service       gRPC localhost:50051
 ceerat-agent-service      HTTP localhost:8088
 ceerat-web-ui             HTTP localhost:3000
+ceerat-customer-ui        HTTP localhost:3005
 ```
 
 Important agent service environment:
@@ -518,7 +540,18 @@ Useful logs:
 ```text
 logs/agent-service.log
 logs/web-ui.log
+logs/customer-ui.log
 logs/user-service.log
+```
+
+Customer chat smoke tests after implementation:
+
+```text
+1. Log in to ceerat-customer-ui as an active customer.
+2. Open http://localhost:3005/chatgpt-client/ or the customer chat launcher.
+3. Ask "who am I" and confirm the assistant uses `get_my_customer_profile`.
+4. Ask "list my skills" and confirm the assistant uses `list_my_skill_profiles`.
+5. Confirm an agent/admin account cannot keep a customer portal session.
 ```
 
 ## Business Events and Intelligence
