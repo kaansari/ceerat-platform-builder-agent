@@ -6,10 +6,11 @@ This file gives the builder agent rules for planning Ceerat AI tools and future 
 
 `apps-repo/ai/ceerat-agent-service` is the active HTTP AI agent service. It validates a Ceerat JWT, calls OpenAI, and executes approved platform operations through backend service APIs.
 
-Current endpoint:
+Current endpoints:
 
 ```text
 POST /agent/chat
+POST /customer/chat
 ```
 
 Browser traffic reaches it through `ceerat-web-ui`:
@@ -19,7 +20,20 @@ POST /api/agent/chat
 POST /api/chatgpt-client/get-prompt-result
 ```
 
-Current tools:
+Customer browser traffic reaches the customer assistant through `ceerat-customer-ui`:
+
+```text
+POST /api/agent/chat
+POST /api/chatgpt-client/get-prompt-result
+```
+
+Those customer UI routes forward to:
+
+```text
+POST /customer/chat
+```
+
+Current agent/admin tools on `POST /agent/chat`:
 
 ```text
 create_customer
@@ -32,9 +46,42 @@ get_order
 update_order_status
 add_service_to_order
 remove_service_from_order
+create_company
+list_companies
+get_company
+update_company
+create_job
+search_jobs
+get_job
+close_job
+list_applications_for_job
+update_application_status
 ```
 
-The actual browser UI remains in:
+Current customer-safe tools on `POST /customer/chat`:
+
+```text
+get_my_customer_profile
+update_my_customer_profile
+list_my_skill_profiles
+create_skill_profile
+add_skill_to_profile
+list_my_resumes
+create_resume
+search_jobs
+get_job
+get_job_cart
+add_job_to_cart
+update_job_cart_item
+remove_job_from_cart
+clear_job_cart
+apply_to_job
+apply_to_cart_jobs
+list_my_applications
+get_my_application
+```
+
+The agent-facing browser UI remains in:
 
 ```text
 apps-repo/apps/ceerat-web-ui/web/chatgpt-client
@@ -44,6 +91,18 @@ It is served by `ceerat-web-ui` at:
 
 ```text
 http://localhost:3000/chatgpt-client/
+```
+
+The customer-facing browser UI remains in:
+
+```text
+apps-repo/apps/ceerat-customer-ui/web/chatgpt-client
+```
+
+It is served by `ceerat-customer-ui` at:
+
+```text
+http://localhost:3005/chatgpt-client/
 ```
 
 Do not remove this UI when cleaning old AI modules. The old standalone redirect helper, if present, is different:
@@ -60,8 +119,8 @@ The expected runtime flow is:
 
 ```text
 Browser chat UI
-  -> ceerat-web-ui same-origin route
-  -> ceerat-agent-service POST /agent/chat
+  -> owning app same-origin route
+  -> ceerat-agent-service POST /agent/chat or POST /customer/chat
   -> OpenAI chat completion with tool definitions
   -> ToolRunner executes requested tool calls
   -> platform.Client sends gRPC with authorization metadata
@@ -78,9 +137,10 @@ The browser must not call OpenAI directly. The browser must not call gRPC direct
 ```text
 GET  /healthz
 POST /agent/chat
+POST /customer/chat
 ```
 
-`POST /agent/chat` requires:
+`POST /agent/chat` and `POST /customer/chat` require:
 
 ```http
 Authorization: Bearer <ceerat-jwt>
@@ -106,6 +166,10 @@ Response shape:
 ```
 
 The agent service validates the bearer token before invoking the model. Invalid, missing, or malformed tokens must return an HTTP auth error before any tool execution.
+
+`POST /agent/chat` must use the agent/admin operations system prompt and `ToolRunner.Run`.
+
+`POST /customer/chat` must use the customer self-service system prompt and `ToolRunner.RunCustomer`.
 
 ## Web UI AI Routes
 
@@ -139,6 +203,25 @@ The web UI forwards both chat surfaces to:
 ${CEERAT_AGENT_BASE_URL}/agent/chat
 ```
 
+## Customer UI AI Routes
+
+`ceerat-customer-ui` owns customer browser-facing AI routes:
+
+```text
+GET  /chatgpt-client
+GET  /chatgpt-client/
+GET  /chatgpt-client/assets/...
+POST /api/agent/chat
+POST /api/chatgpt-client/get-prompt-result
+```
+
+Rules:
+
+- Customer UI routes forward to `${CEERAT_AGENT_BASE_URL}/customer/chat`.
+- Customer UI stores the backend JWT in the HttpOnly `ceerat_session` cookie and forwards it to the agent service as `Authorization: Bearer <jwt>`.
+- Customer chat must expose only customer self-service tools.
+- Customer chat must not expose company/job administration, application review, all-customer listing, or agent/admin operations.
+
 ## Existing Tool Implementation Files
 
 Future tool work must start from these files:
@@ -155,8 +238,9 @@ Responsibilities:
 
 - `internal/agent/tools.go` defines the OpenAI tool schemas and maps tool calls to platform client methods.
 - `ToolRunner.Run` parses JSON tool arguments, attaches the session token to context, calls the platform client, and returns JSON string results to the OpenAI tool loop.
+- `ToolRunner.RunCustomer` does the same for customer-safe tools only.
 - `internal/platform/client.go` owns all gRPC clients and the JWT forwarding behavior.
-- `internal/httpapi/server.go` owns `/agent/chat`, bearer token validation, request validation, timeout handling, and response shaping.
+- `internal/httpapi/server.go` owns `/agent/chat`, `/customer/chat`, bearer token validation, request validation, timeout handling, and response shaping.
 - contracts in `ceerat-contracts` define the protobuf request/response APIs.
 - user-service security hooks define the final RBAC and ownership enforcement.
 
