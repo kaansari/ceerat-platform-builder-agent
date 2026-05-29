@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ceerat Platform Overview</title>
+  <style>
+    :root {
+      --ink: #1f2933;
+      --muted: #5f6b7a;
+      --line: #d7dee8;
+      --panel: #ffffff;
+      --wash: #f5f7fa;
+      --brand: #25635f;
+      --accent: #8b5cf6;
+      --warn: #b45309;
+      --good: #047857;
+      --shadow: 0 16px 40px rgba(31, 41, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--wash);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 34px 24px 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .hero-main,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 32px;
+    }
+
+    .hero-side {
+      padding: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      max-width: 760px;
+      font-size: clamp(36px, 5vw, 62px);
+    }
+
+    h2 {
+      font-size: 25px;
+    }
+
+    h3 {
+      font-size: 17px;
+    }
+
+    p {
+      margin: 10px 0 0;
+    }
+
+    .lead {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .panel {
+      padding: 22px;
+      margin-top: 18px;
+      break-inside: avoid;
+    }
+
+    .mini {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .mini p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef6f5;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .rule {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--brand);
+      background: #eef6f5;
+      color: #174643;
+      border-radius: 4px;
+      font-weight: 650;
+    }
+
+    .warning {
+      border-left-color: var(--warn);
+      background: #fff7ed;
+      color: #7c2d12;
+    }
+
+    .good {
+      border-left-color: var(--good);
+      background: #ecfdf5;
+      color: #064e3b;
+    }
+
+    .diagram {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+      align-items: center;
+    }
+
+    .flow-card {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+      font-weight: 750;
+      font-size: 14px;
+    }
+
+    .arrow {
+      color: var(--muted);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 14px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+
+    .lane-name {
+      display: flex;
+      align-items: center;
+      padding: 14px;
+      border-radius: 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-weight: 800;
+    }
+
+    .lane-body {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .box {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      min-height: 78px;
+    }
+
+    .box strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .box span,
+    li,
+    td {
+      color: var(--muted);
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: #edf1f5;
+      color: #243b53;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      overflow: auto;
+      margin: 14px 0 0;
+      padding: 16px;
+      border-radius: 8px;
+      background: #111827;
+      color: #f9fafb;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--ink);
+      background: #f8fafc;
+      font-weight: 800;
+    }
+
+    ul,
+    ol {
+      margin: 12px 0 0;
+      padding-left: 22px;
+    }
+
+    .toc {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      font-weight: 750;
+    }
+
+    .source-list {
+      columns: 2;
+    }
+
+    .source-list li {
+      break-inside: avoid;
+      margin-bottom: 6px;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .flow,
+      .lane,
+      .lane-body {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+      }
+
+      .source-list {
+        columns: 1;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+
+      .hero-main,
+      .panel,
+      .mini {
+        box-shadow: none;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .panel {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <p class="eyebrow">Ceerat Builder Agent</p>
+        <h1>Platform Overview</h1>
+        <p class="lead">A single printable guide to the current Ceerat architecture, service boundaries, security model, UI ownership, AI tools, and builder workflow. This file summarizes the durable builder-agent markdown files so the whole system can be read in one place.</p>
+        <div class="tag-row">
+          <span class="tag">Services first</span>
+          <span class="tag">gRPC contracts</span>
+          <span class="tag">JWT/RBAC</span>
+          <span class="tag">Customer ownership</span>
+          <span class="tag">AI through APIs</span>
+          <span class="tag">Separate BI store</span>
+        </div>
+      </div>
+      <aside class="hero-main hero-side">
+        <p class="eyebrow">Reading Map</p>
+        <div class="toc">
+          <a href="#big-picture">1. Big Picture</a>
+          <a href="#components">2. Components</a>
+          <a href="#services">3. Services</a>
+          <a href="#security">4. Security</a>
+          <a href="#apps">5. Apps and UI</a>
+          <a href="#ai">6. AI Tools</a>
+          <a href="#builder">7. Builder Workflow</a>
+          <a href="#sources">8. Source Docs</a>
+        </div>
+      </aside>
+    </section>
+
+    <section id="big-picture" class="panel">
+      <p class="eyebrow">50,000 Foot View</p>
+      <h2>The Core Rule</h2>
+      <div class="rule">Apps and AI agents do not write directly to PostgreSQL. They call backend services. Backend services own persistence, migrations, business rules, security, RBAC, ownership checks, and logging.</div>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-card">Users<br>Admins<br>Customers</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">Browser Apps</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">App Servers<br>Proxies</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">Backend Services</div>
+        </div>
+        <div class="flow">
+          <div class="flow-card">AI Agent<br>Service</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">Approved Tool<br>Calls</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">Backend gRPC</div>
+          <div class="arrow">→</div>
+          <div class="flow-card">PostgreSQL<br>OLTP</div>
+        </div>
+      </div>
+      <p>Business intelligence and AI insights should use copied/evented data in a separate BI database. Operational logs are for debugging, not reporting.</p>
+    </section>
+
+    <section id="components" class="panel">
+      <p class="eyebrow">Workspace Shape</p>
+      <h2>Major Repositories and Responsibilities</h2>
+      <div class="grid three">
+        <div class="mini">
+          <h3><code>infra</code></h3>
+          <p>Local stack start/stop, environment wiring, logs, PIDs, database startup, and Makefile targets.</p>
+        </div>
+        <div class="mini">
+          <h3><code>contracts-repo</code></h3>
+          <p>Protobuf contracts, generated gRPC clients/servers, domain DTOs, mappers, and shared security hooks.</p>
+        </div>
+        <div class="mini">
+          <h3><code>services-repo</code></h3>
+          <p>Backend services. Currently the mature core is <code>ceerat-user-service</code>.</p>
+        </div>
+        <div class="mini">
+          <h3><code>apps-repo</code></h3>
+          <p>Admin UI, agent/web UI, customer UI, and the active AI agent service.</p>
+        </div>
+        <div class="mini">
+          <h3><code>ceerat-platform-builder-agent</code></h3>
+          <p>Codex discovery and consistency tool. Stores durable platform standards in <code>.ceerat-agent</code>.</p>
+        </div>
+        <div class="mini">
+          <h3>PostgreSQL</h3>
+          <p>OLTP source of truth for transactional data, owned through backend services.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="services" class="panel">
+      <p class="eyebrow">Backend Service Boundary</p>
+      <h2><code>ceerat-user-service</code> Owns the Core Platform</h2>
+      <div class="grid two">
+        <div>
+          <h3>Runtime</h3>
+          <table>
+            <tr><th>Interface</th><th>Local endpoint</th></tr>
+            <tr><td>gRPC</td><td><code>localhost:50051</code></td></tr>
+            <tr><td>Admin HTTP</td><td><code>localhost:8081</code></td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>Owned Capabilities</h3>
+          <ul>
+            <li>Auth, token validation, users, account status.</li>
+            <li>Customer profiles and customer ownership flows.</li>
+            <li>Service catalog, product catalog, and carts.</li>
+            <li>Orders and order service lines.</li>
+            <li>Career companies, jobs, skill profiles, resumes, job carts, and applications.</li>
+            <li>RBAC roles, permissions, cache, and admin hooks.</li>
+          </ul>
+        </div>
+      </div>
+      <h3 style="margin-top: 18px;">Registered gRPC Areas</h3>
+      <div class="grid four">
+        <div class="mini"><code>auth.Auth</code><p>Login, token validation, users.</p></div>
+        <div class="mini"><code>customer.CustomerService</code><p>Customer profiles and ownership.</p></div>
+        <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
+        <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
+        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes.</p></div>
+        <div class="mini"><code>career.JobService</code><p>Companies and jobs.</p></div>
+        <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
+        <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
+      </div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+    </section>
+
+    <section id="security" class="panel">
+      <p class="eyebrow">Security Model</p>
+      <h2>JWT, RBAC, Then Ownership</h2>
+      <div class="flow" style="grid-template-columns: repeat(9, minmax(0, 1fr));">
+        <div class="flow-card">JWT<br>Interceptor</div>
+        <div class="arrow">→</div>
+        <div class="flow-card">RBAC<br>Interceptor</div>
+        <div class="arrow">→</div>
+        <div class="flow-card">Logging<br>Interceptor</div>
+        <div class="arrow">→</div>
+        <div class="flow-card">Handler<br>Checks</div>
+        <div class="arrow">→</div>
+        <div class="flow-card">Repository<br>Scope</div>
+      </div>
+      <div class="grid two">
+        <div class="mini">
+          <h3>RBAC Answers</h3>
+          <p>Can this role call this method?</p>
+          <pre>/package.Service/Method</pre>
+        </div>
+        <div class="mini">
+          <h3>Ownership Answers</h3>
+          <p>Can this authenticated user access this exact record?</p>
+          <pre>WHERE id = ? AND user_id = ?</pre>
+        </div>
+      </div>
+      <h3 style="margin-top: 18px;">Critical Rules</h3>
+      <ul>
+        <li>Public methods must be rare: login, registration, token validation, and health checks.</li>
+        <li>Customer-owned Career data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
+        <li>Customer tools and pages must be self-service only.</li>
+        <li>Admin-only operations remain admin-only even if an AI tool would make them convenient.</li>
+        <li>Do not fix permission errors by widening RBAC without checking portal role/session ownership first.</li>
+      </ul>
+    </section>
+
+    <section id="apps" class="panel">
+      <p class="eyebrow">Apps and UI Ownership</p>
+      <h2>Browser Apps Are Proxies, Not Data Owners</h2>
+      <div class="lane">
+        <div class="lane-name">Admin UI<br><code>:3010</code></div>
+        <div class="lane-body">
+          <div class="box"><strong>Owns</strong><span>Users, roles, RBAC, cache refresh, operational controls.</span></div>
+          <div class="box"><strong>Depends on</strong><span>User service admin HTTP API.</span></div>
+          <div class="box"><strong>Does not own</strong><span>Career workspace or customer self-service.</span></div>
+          <div class="box"><strong>Rule</strong><span>Admin role/system account protections stay strict.</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-name">Web UI<br><code>:3000</code></div>
+        <div class="lane-body">
+          <div class="box"><strong>Owns</strong><span>Agent operational dashboard, orders, agent Career pages, AI Agent panel.</span></div>
+          <div class="box"><strong>Session</strong><span>Active agent only.</span></div>
+          <div class="box"><strong>Chat</strong><span>Forwards to <code>/agent/chat</code>.</span></div>
+          <div class="box"><strong>Career</strong><span>Uses <code>/api/agent/career/*</code>.</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-name">Customer UI<br><code>:3005</code></div>
+        <div class="lane-body">
+          <div class="box"><strong>Owns</strong><span>Customer registration, profile, orders, Career self-service, customer AI chat.</span></div>
+          <div class="box"><strong>Session</strong><span>Active customer only.</span></div>
+          <div class="box"><strong>Chat</strong><span>Forwards to <code>/customer/chat</code>.</span></div>
+          <div class="box"><strong>Career</strong><span>Uses <code>/api/customer/career/*</code>.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ai" class="panel">
+      <p class="eyebrow">AI Tooling</p>
+      <h2>One Agent Service, Separate Tool Surfaces</h2>
+      <div class="grid two">
+        <div class="mini">
+          <h3>Agent/Admin Chat</h3>
+          <pre>ceerat-web-ui
+  -> /api/agent/chat
+  -> ceerat-agent-service /agent/chat
+  -> ToolRunner.Run
+  -> agent/admin tools</pre>
+          <p>Tools include customers, services, orders, companies, jobs, and application review operations.</p>
+        </div>
+        <div class="mini">
+          <h3>Customer Chat</h3>
+          <pre>ceerat-customer-ui
+  -> /api/chatgpt-client/get-prompt-result
+  -> ceerat-agent-service /customer/chat
+  -> ToolRunner.RunCustomer
+  -> customer-safe tools</pre>
+          <p>Tools include customer profile, skill profiles, resumes, job search, job cart, and own applications.</p>
+        </div>
+      </div>
+      <div class="rule warning">The AI tool layer is not the security boundary. Tools execute with the user's Ceerat JWT, and backend services still enforce JWT, RBAC, ownership, and repository scoping.</div>
+      <h3 style="margin-top: 18px;">Customer Chat Smoke Test</h3>
+      <ol>
+        <li>Log in to <code>ceerat-customer-ui</code> as an active customer.</li>
+        <li>Open <code>http://localhost:3005/chatgpt-client/</code> or the customer chat launcher.</li>
+        <li>Ask “who am I” and confirm <code>get_my_customer_profile</code> succeeds.</li>
+        <li>Ask “list my skills” and confirm <code>list_my_skill_profiles</code> succeeds.</li>
+        <li>Confirm an agent/admin account cannot keep a customer portal session.</li>
+      </ol>
+    </section>
+
+    <section id="builder" class="panel">
+      <p class="eyebrow">Builder Workflow</p>
+      <h2>How Codex Should Use the Builder</h2>
+      <div class="grid three">
+        <div class="mini">
+          <h3>1. Discover</h3>
+          <p>Read context and inventories before planning.</p>
+          <pre>ceerat-builder codex-context
+ceerat-builder inventory services
+ceerat-builder inventory contracts
+ceerat-builder inventory apps</pre>
+        </div>
+        <div class="mini">
+          <h3>2. Decide</h3>
+          <p>Use standards and evidence to decide ownership, APIs, security, and tests.</p>
+          <pre>ceerat-builder patterns service
+ceerat-builder patterns grpc-security
+ceerat-builder evidence request "..."</pre>
+        </div>
+        <div class="mini">
+          <h3>3. Verify</h3>
+          <p>Run targeted builds/tests and drift checks before updating standards.</p>
+          <pre>ceerat-builder verify ...
+ceerat-builder check drift
+ceerat-builder check apps</pre>
+        </div>
+      </div>
+      <div class="rule">Durable builder docs should be updated only after implementation, tests/builds, builder checks, and human validation confirm the pattern is reusable.</div>
+    </section>
+
+    <section id="sources" class="panel">
+      <p class="eyebrow">Source of This Overview</p>
+      <h2>Builder-Agent Documents</h2>
+      <p>This HTML is a readable rollup. The markdown and JSON files remain the operational source material for Codex and the builder tool.</p>
+      <ul class="source-list">
+        <li><code>.ceerat-agent/architecture.md</code></li>
+        <li><code>.ceerat-agent/service-standards.md</code></li>
+        <li><code>.ceerat-agent/security-rbac-standard.md</code></li>
+        <li><code>.ceerat-agent/ui-standard.md</code></li>
+        <li><code>.ceerat-agent/ai-tool-standard.md</code></li>
+        <li><code>.ceerat-agent/module-generation-standard.md</code></li>
+        <li><code>.ceerat-agent/prompts/system.md</code></li>
+        <li><code>.ceerat-agent/prompts/planner.md</code></li>
+        <li><code>.ceerat-agent/domain-requirements.json</code></li>
+      </ul>
+      <h3 style="margin-top: 18px;">Useful Local Logs</h3>
+      <pre>logs/user-service.log
+logs/postgres.log
+logs/web-ui.log
+logs/customer-ui.log
+logs/admin-ui.log
+logs/agent-service.log</pre>
+    </section>
+
+    <p class="footer">Ceerat Platform Overview. Printable summary generated from builder-agent standards.</p>
+  </main>
+</body>
+</html>
