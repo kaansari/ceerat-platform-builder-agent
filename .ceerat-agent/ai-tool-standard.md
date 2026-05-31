@@ -11,6 +11,12 @@ Current endpoints:
 ```text
 POST /agent/chat
 POST /customer/chat
+GET  /agent/threads
+GET  /agent/threads/{session_id}
+DELETE /agent/threads/{session_id}
+GET  /customer/threads
+GET  /customer/threads/{session_id}
+DELETE /customer/threads/{session_id}
 ```
 
 Browser traffic reaches it through `ceerat-web-ui`:
@@ -121,14 +127,16 @@ The expected runtime flow is:
 Browser chat UI
   -> owning app same-origin route
   -> ceerat-agent-service POST /agent/chat or POST /customer/chat
+  -> ai.AIThreadService loads sanitized history by profile + session_id
   -> OpenAI chat completion with tool definitions
   -> ToolRunner executes requested tool calls
   -> platform.Client sends gRPC with authorization metadata
   -> ceerat-user-service validates JWT/RBAC/ownership
   -> PostgreSQL through the service repository layer
+  -> ai.AIThreadService stores only user + final assistant messages
 ```
 
-The browser must not call OpenAI directly. The browser must not call gRPC directly. The agent service must not write directly to PostgreSQL.
+The browser must not call OpenAI directly. The browser must not call gRPC directly. The agent service must not write directly to PostgreSQL. Chat history persistence must go through `ai.AIThreadService`.
 
 ## Active AI HTTP Routes
 
@@ -138,6 +146,12 @@ The browser must not call OpenAI directly. The browser must not call gRPC direct
 GET  /healthz
 POST /agent/chat
 POST /customer/chat
+GET  /agent/threads
+GET  /agent/threads/{session_id}
+DELETE /agent/threads/{session_id}
+GET  /customer/threads
+GET  /customer/threads/{session_id}
+DELETE /customer/threads/{session_id}
 ```
 
 `POST /agent/chat` and `POST /customer/chat` require:
@@ -161,7 +175,9 @@ Response shape:
 ```json
 {
   "reply": "Here are your customers...",
-  "actions": ["list_customers"]
+  "actions": ["list_customers"],
+  "session_id": "thread-...",
+  "threadId": "thread-..."
 }
 ```
 
@@ -170,6 +186,24 @@ The agent service validates the bearer token before invoking the model. Invalid,
 `POST /agent/chat` must use the agent/admin operations system prompt and `ToolRunner.Run`.
 
 `POST /customer/chat` must use the customer self-service system prompt and `ToolRunner.RunCustomer`.
+
+Thread route rules:
+
+- `/agent/threads...` uses `THREAD_PROFILE_AGENT`.
+- `/customer/threads...` uses `THREAD_PROFILE_CUSTOMER`.
+- Thread routes require `Authorization: Bearer <ceerat-jwt>`.
+- List/get/delete routes must forward through `platform.Client` to `ai.AIThreadService`.
+- Returned thread JSON may expose `threadId` as the external thread id for browser compatibility.
+- If `POST /agent/chat` or `POST /customer/chat` receives no `session_id`, `ceerat-agent-service` should generate a new external thread id and return it in the chat response.
+
+Persisted history rules:
+
+- Load only sanitized previous `user` and final `assistant` messages before model completion.
+- Append only the current user message and final assistant response after a completed turn.
+- Do not persist system prompts.
+- Do not persist OpenAI tool-call protocol messages.
+- Do not persist raw tool results.
+- Do not persist authorization headers, JWTs, or request metadata.
 
 ## Web UI AI Routes
 
@@ -180,6 +214,9 @@ GET  /chatgpt-client
 GET  /chatgpt-client/
 GET  /chatgpt-client/assets/...
 POST /api/agent/chat
+GET  /api/agent/threads
+GET  /api/agent/threads/{session_id}
+DELETE /api/agent/threads/{session_id}
 POST /api/chatgpt-client/get-prompt-result
 ```
 
@@ -188,6 +225,7 @@ Rules:
 - `GET /chatgpt-client` redirects to `/chatgpt-client/`.
 - `GET /chatgpt-client/` serves the full-page chat UI.
 - `POST /api/agent/chat` forwards dashboard chat JSON to `ceerat-agent-service`.
+- `GET /api/agent/threads`, `GET /api/agent/threads/{session_id}`, and `DELETE /api/agent/threads/{session_id}` proxy to `ceerat-agent-service` agent thread endpoints.
 - `POST /api/chatgpt-client/get-prompt-result` adapts the full-page chat UI prompt shape to the active agent API and returns the plain-text reply expected by that UI.
 - The web UI stores the backend JWT in the HttpOnly `ceerat_session` cookie and forwards it to the agent service as `Authorization: Bearer <jwt>`.
 
@@ -212,12 +250,16 @@ GET  /chatgpt-client
 GET  /chatgpt-client/
 GET  /chatgpt-client/assets/...
 POST /api/agent/chat
+GET  /api/agent/threads
+GET  /api/agent/threads/{session_id}
+DELETE /api/agent/threads/{session_id}
 POST /api/chatgpt-client/get-prompt-result
 ```
 
 Rules:
 
 - Customer UI routes forward to `${CEERAT_AGENT_BASE_URL}/customer/chat`.
+- Customer UI thread routes keep the browser path `/api/agent/threads...` for shared chat assets, but proxy to `${CEERAT_AGENT_BASE_URL}/customer/threads...`.
 - Customer UI stores the backend JWT in the HttpOnly `ceerat_session` cookie and forwards it to the agent service as `Authorization: Bearer <jwt>`.
 - Customer UI must accept only active `customer` sessions. Agent or admin users must not be allowed to keep a customer portal session, because customer-safe AI tools require customer ownership context and will correctly fail for non-customer roles.
 - Customer chat must expose only customer self-service tools.
@@ -233,6 +275,8 @@ apps-repo/ai/ceerat-agent-service/internal/agent/tools.go
 apps-repo/ai/ceerat-agent-service/internal/platform/client.go
 apps-repo/ai/ceerat-agent-service/internal/httpapi/server.go
 contracts-repo/packages/ceerat-contracts/proto/...
+contracts-repo/packages/ceerat-contracts/proto/ai/ai.proto
+services-repo/services/ceerat-user-service/aithreads/
 services-repo/services/ceerat-user-service/internal/security/...
 ```
 
@@ -242,7 +286,9 @@ Responsibilities:
 - `ToolRunner.Run` parses JSON tool arguments, attaches the session token to context, calls the platform client, and returns JSON string results to the OpenAI tool loop.
 - `ToolRunner.RunCustomer` does the same for customer-safe tools only.
 - `internal/platform/client.go` owns all gRPC clients and the JWT forwarding behavior.
-- `internal/httpapi/server.go` owns `/agent/chat`, `/customer/chat`, bearer token validation, request validation, timeout handling, and response shaping.
+- `internal/platform/client.go` includes the `ai.AIThreadService` client and typed methods for get/list/append/delete thread operations.
+- `internal/httpapi/server.go` owns `/agent/chat`, `/customer/chat`, thread HTTP routes, bearer token validation, request validation, timeout handling, and response shaping.
+- `services-repo/services/ceerat-user-service/aithreads` owns AI thread handler/repository behavior and profile/user scoping.
 - contracts in `ceerat-contracts` define the protobuf request/response APIs.
 - user-service security hooks define the final RBAC and ownership enforcement.
 
@@ -331,6 +377,7 @@ platform.Client
   jobs      career.JobServiceClient
   carts     career.JobCartServiceClient
   apps      career.JobApplicationServiceClient
+  threads   ai.AIThreadServiceClient
 ```
 
 Current session structure:
@@ -371,6 +418,13 @@ User scoping rules:
 - If customer tools return permission errors for `who am I`, `my profile`, `list my skills`, or similar customer-owned requests, first verify the logged-in portal session is an active customer. An active agent/admin token in `ceerat-customer-ui` is a portal-boundary bug, not an AI prompt/tool-selection problem.
 - Backend RBAC and repository ownership checks remain the final authority.
 
+Thread scoping rules:
+
+- Agent profile history is scoped as authenticated user + `THREAD_PROFILE_AGENT` + external thread id.
+- Customer profile history is scoped as authenticated user + `THREAD_PROFILE_CUSTOMER` + external thread id.
+- The browser may provide an external `session_id`, but must not provide or control the persisted user id.
+- The old in-memory history keying pattern should not be reintroduced. Durable history belongs in `ai.AIThreadService`.
+
 Error handling rules:
 
 - gRPC errors should be returned to the caller and converted by `/agent/chat` into an HTTP error response.
@@ -388,11 +442,14 @@ HTTP /agent/chat
   -> decode/validate ChatRequest
   -> create bounded request context
   -> Agent.Chat(session, session_id, message)
+  -> GetOrCreateThread/GetThread from ai.AIThreadService
+  -> prepend sanitized user/final-assistant history
   -> OpenAI chat completion with toolDefinitions()
   -> model requests one or more tool calls
   -> ToolRunner.Run parses JSON arguments
   -> ToolRunner calls platform.Client
   -> JSON tool result is sent back to OpenAI
+  -> AppendMessage user + final assistant to ai.AIThreadService
   -> final assistant reply plus action names returned to web UI
 ```
 
@@ -404,10 +461,12 @@ For customer chat, use the same loop with:
 HTTP /customer/chat
   -> validate bearer token through platform.Client.ValidateSession
   -> Agent.CustomerChat(session, session_id, message)
+  -> GetOrCreateThread/GetThread from ai.AIThreadService with customer profile
   -> customer self-service system prompt
   -> customerToolDefinitions()
   -> ToolRunner.RunCustomer
   -> backend gRPC services enforce JWT/RBAC/ownership
+  -> AppendMessage user + final assistant to ai.AIThreadService
 ```
 
 Do not route customer portal chat to `/agent/chat`. Do not expose agent/admin tools through `RunCustomer`.

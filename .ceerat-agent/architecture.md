@@ -121,6 +121,7 @@ It owns:
 - Customer-service assignments.
 - Orders and order service lines.
 - Career companies, jobs, skill profiles, resumes, job carts, and job applications.
+- AI chat thread history for agent and customer profiles.
 - RBAC roles and gRPC method permissions.
 - Admin HTTP management API.
 - GORM entities and migrations.
@@ -137,6 +138,7 @@ career.CareerProfileService
 career.JobService
 career.JobCartService
 career.JobApplicationService
+ai.AIThreadService
 ```
 
 Validated ownership rule:
@@ -150,6 +152,10 @@ Validated ownership rule:
 - Agent-facing career administration belongs in `ceerat-web-ui`; admin UI remains focused on users, roles, RBAC, security, and system administration.
 - Customer-facing Career self-service belongs in `ceerat-customer-ui`. It uses `/customer/career...` pages and `/api/customer/career...` same-origin API bridges that forward the customer's JWT to backend Career gRPC services.
 - AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs.
+- AI chat thread history belongs to `ceerat-user-service` under `proto/ai` as `ai.AIThreadService`.
+- Agent and customer chat histories are scoped by authenticated user id, profile, and external thread id: `agent:<user_id>:<session_id>` and `customer:<user_id>:<session_id>` conceptually, with the backend enforcing JWT ownership.
+- Persisted AI history must contain sanitized user and final assistant messages only. Do not persist system prompts, raw tool results, tool call protocol messages, authorization data, or model/tool debug payloads.
+- Browser chat history UX belongs in the existing `ceerat-web-ui` and `ceerat-customer-ui` full-page `/chatgpt-client/` surfaces, not in the admin UI or a new standalone app.
 
 ## Contracts Boundary
 
@@ -160,6 +166,7 @@ proto/auth/
 proto/customer/
 proto/order/
 proto/career/
+proto/ai/
 proto/service/
 domain/
 mapper/

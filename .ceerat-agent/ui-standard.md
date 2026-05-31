@@ -112,6 +112,39 @@ Supported web AI chat surfaces:
 
 Chat surfaces must forward through their owning app server to `ceerat-agent-service`; browser assets must not call OpenAI directly.
 
+Full-page chat surfaces include persisted thread UX:
+
+- A history sidebar on `/chatgpt-client/`.
+- Load previous thread.
+- Start new chat.
+- Delete thread.
+
+Both browser apps expose the same same-origin thread routes to the browser:
+
+```text
+GET    /api/agent/threads
+GET    /api/agent/threads/{session_id}
+DELETE /api/agent/threads/{session_id}
+```
+
+In `ceerat-web-ui`, those routes proxy to `ceerat-agent-service` agent thread endpoints:
+
+```text
+GET    /agent/threads
+GET    /agent/threads/{session_id}
+DELETE /agent/threads/{session_id}
+```
+
+In `ceerat-customer-ui`, those same browser route names proxy to customer thread endpoints:
+
+```text
+GET    /customer/threads
+GET    /customer/threads/{session_id}
+DELETE /customer/threads/{session_id}
+```
+
+Thread UX must use `session_id` / `threadId` returned by the agent service. Do not default new browser threads to the authenticated user id; if no session id is supplied, let `ceerat-agent-service` generate a new external thread id.
+
 Validated customer chat route:
 
 ```text

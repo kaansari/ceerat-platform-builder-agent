@@ -185,6 +185,7 @@ Current service API areas in `ceerat-user-service`:
 | Service Manager | `proto/service` | Service catalog, product catalog, customer carts, and customer-service assignments. |
 | Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
 | Career | `proto/career` | Companies, jobs, skill profiles, resumes, job carts, and job applications. |
+| AI Threads | `proto/ai` | Persisted sanitized AI chat thread history for agent and customer profiles. |
 
 The service default gRPC address is:
 
@@ -210,6 +211,45 @@ Error behavior should use canonical gRPC codes:
 | Missing/invalid request fields | `InvalidArgument` |
 
 Messages should be safe and generic, such as `authentication required`, `invalid token`, and `access denied`.
+
+## AI Thread Service Standard
+
+AI chat thread persistence is owned by `ceerat-user-service` through `ai.AIThreadService` in `contracts-repo/packages/ceerat-contracts/proto/ai/ai.proto`.
+
+Current protected methods:
+
+```text
+ai.AIThreadService/GetOrCreateThread
+ai.AIThreadService/GetThread
+ai.AIThreadService/ListThreads
+ai.AIThreadService/AppendMessage
+ai.AIThreadService/ReplaceThreadMessages
+ai.AIThreadService/DeleteThread
+```
+
+Thread records must be scoped by authenticated user id, profile, and external thread id. Treat the conceptual keys as:
+
+```text
+agent:<user_id>:<session_id>
+customer:<user_id>:<session_id>
+```
+
+The service should enforce this scope from JWT context, not from browser-supplied ownership fields. Customer callers may only use `THREAD_PROFILE_CUSTOMER`; agent/admin callers may only use `THREAD_PROFILE_AGENT` unless a future explicit requirement changes profile access rules.
+
+Persistence rules:
+
+- Store only sanitized `user` and final `assistant` messages.
+- Do not store system prompts.
+- Do not store OpenAI tool-call protocol messages.
+- Do not store raw tool results.
+- Do not store JWTs, authorization headers, request metadata, or debug traces in thread content.
+- Use repository-level ownership filters for every get/list/append/replace/delete operation.
+
+App/agent integration rules:
+
+- `ceerat-agent-service` loads history from `AIThreadService` before calling OpenAI.
+- `ceerat-agent-service` appends the user message and final assistant response only after a completed turn.
+- Browser apps expose thread list/history through same-origin proxy routes; browser assets must not call gRPC or the database directly.
 
 ## Admin HTTP Standard
 

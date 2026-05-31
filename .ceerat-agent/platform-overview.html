@@ -508,8 +508,9 @@
         <div class="mini"><code>career.JobService</code><p>Companies and jobs.</p></div>
         <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
         <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
+        <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">
@@ -566,6 +567,7 @@
           <div class="box"><strong>Owns</strong><span>Agent operational dashboard, orders, agent Career pages, AI Agent panel.</span></div>
           <div class="box"><strong>Session</strong><span>Active agent only.</span></div>
           <div class="box"><strong>Chat</strong><span>Forwards to <code>/agent/chat</code>.</span></div>
+          <div class="box"><strong>Threads</strong><span>Uses <code>/api/agent/threads</code> -> <code>/agent/threads</code>.</span></div>
           <div class="box"><strong>Career</strong><span>Uses <code>/api/agent/career/*</code>.</span></div>
         </div>
       </div>
@@ -575,6 +577,7 @@
           <div class="box"><strong>Owns</strong><span>Customer registration, profile, orders, Career self-service, customer AI chat.</span></div>
           <div class="box"><strong>Session</strong><span>Active customer only.</span></div>
           <div class="box"><strong>Chat</strong><span>Forwards to <code>/customer/chat</code>.</span></div>
+          <div class="box"><strong>Threads</strong><span>Uses shared browser path <code>/api/agent/threads</code> -> <code>/customer/threads</code>.</span></div>
           <div class="box"><strong>Career</strong><span>Uses <code>/api/customer/career/*</code>.</span></div>
         </div>
       </div>
@@ -589,6 +592,7 @@
           <pre>ceerat-web-ui
   -> /api/agent/chat
   -> ceerat-agent-service /agent/chat
+  -> ai.AIThreadService THREAD_PROFILE_AGENT
   -> ToolRunner.Run
   -> agent/admin tools</pre>
           <p>Tools include customers, services, orders, companies, jobs, and application review operations.</p>
@@ -598,11 +602,13 @@
           <pre>ceerat-customer-ui
   -> /api/chatgpt-client/get-prompt-result
   -> ceerat-agent-service /customer/chat
+  -> ai.AIThreadService THREAD_PROFILE_CUSTOMER
   -> ToolRunner.RunCustomer
   -> customer-safe tools</pre>
           <p>Tools include customer profile, skill profiles, resumes, job search, job cart, and own applications.</p>
         </div>
       </div>
+      <div class="rule good">Persisted AI history stores only sanitized user and final assistant messages. System prompts, tool calls, raw tool results, JWTs, and request metadata must not be stored in thread history.</div>
       <div class="rule warning">The AI tool layer is not the security boundary. Tools execute with the user's Ceerat JWT, and backend services still enforce JWT, RBAC, ownership, and repository scoping.</div>
       <h3 style="margin-top: 18px;">Customer Chat Smoke Test</h3>
       <ol>
