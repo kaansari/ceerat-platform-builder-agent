@@ -505,12 +505,12 @@
         <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
         <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
         <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes.</p></div>
-        <div class="mini"><code>career.JobService</code><p>Companies and jobs.</p></div>
+        <div class="mini"><code>career.JobService</code><p>Global companies/jobs with duplicate company validation.</p></div>
         <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
         <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
         <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global and company create/update paths must reject likely duplicate names. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">

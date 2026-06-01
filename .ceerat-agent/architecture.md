@@ -148,10 +148,11 @@ Validated ownership rule:
 - Admin/agent callers may inspect or manage carts only through protected service APIs and explicit customer context.
 - Career capability belongs to `ceerat-user-service` under `proto/career`.
 - Career company and job records are global operational data for agent/admin workflows, not per-agent-owned records.
+- Career company create/update paths must guard global data quality by rejecting likely duplicate company names after normalization and similarity checks.
 - Customer career profile, resume, job cart, and application methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`. Customer callers must not be trusted to submit arbitrary `customer_id` values.
 - Agent-facing career administration belongs in `ceerat-web-ui`; admin UI remains focused on users, roles, RBAC, security, and system administration.
 - Customer-facing Career self-service belongs in `ceerat-customer-ui`. It uses `/customer/career...` pages and `/api/customer/career...` same-origin API bridges that forward the customer's JWT to backend Career gRPC services.
-- AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs.
+- AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs. The agent may answer first-party account questions from sanitized `ValidateToken.user` session context.
 - AI chat thread history belongs to `ceerat-user-service` under `proto/ai` as `ai.AIThreadService`.
 - Agent and customer chat histories are scoped by authenticated user id, profile, and external thread id: `agent:<user_id>:<session_id>` and `customer:<user_id>:<session_id>` conceptually, with the backend enforcing JWT ownership.
 - Persisted AI history must contain sanitized user and final assistant messages only. Do not persist system prompts, raw tool results, tool call protocol messages, authorization data, or model/tool debug payloads.

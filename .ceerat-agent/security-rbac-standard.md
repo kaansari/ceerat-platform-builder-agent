@@ -55,6 +55,7 @@ x-auth-token: <jwt>
 ```
 
 JWT values must never be logged. JWT claims should exclude passwords and token fields.
+Auth validation responses should return sanitized current user claims from the auth service. Callers must not decode JWT payloads locally after `auth.Auth/ValidateToken`.
 
 ## Public Method Rules
 

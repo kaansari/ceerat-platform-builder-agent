@@ -316,6 +316,7 @@ x-auth-token: <jwt>
 ```
 
 Token values must never be logged.
+Auth validation responses should return sanitized current user claims from the auth service. Callers must not decode JWT payloads locally after `auth.Auth/ValidateToken`.
 
 Current default public methods are intentionally small:
 
@@ -605,6 +606,7 @@ career.JobApplicationService/UpdateApplicationStatus
 Career ownership and security rules:
 
 - Companies and jobs are global operational records for agent/admin workflows.
+- Company create/update must run duplicate validation against existing global companies. Normalize case, punctuation, whitespace, common legal suffixes such as `Inc`, `LLC`, `Ltd`, `Corp`, and acronym punctuation before comparing. Reject exact or highly similar names with a clear validation error.
 - Customer-owned career records include skill profiles, resumes, job carts, and applications.
 - Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
 - Agent/admin job and application review workflows use protected Career RPCs. Apps and AI tools must not write directly to the database.
@@ -612,6 +614,7 @@ Career ownership and security rules:
 
 Career smoke tests should cover:
 
+- Duplicate company validation for case-only, punctuation-only, legal-suffix, acronym, and near-spelling variants such as `iBM`, `I.B.M. LLC`, or `Microsft`.
 - Customer ownership for skill profiles, resumes, cart, and applications.
 - RBAC denial for customer attempts to create companies/jobs or review all applications.
 - Agent/admin create/list/update company and create/search/update/close/reopen job.
