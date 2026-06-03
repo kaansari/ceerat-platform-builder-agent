@@ -74,6 +74,7 @@ create_skill_profile
 add_skill_to_profile
 list_my_resumes
 create_resume
+download_resume
 search_jobs
 get_job
 get_job_cart
@@ -551,6 +552,8 @@ The model may explain what it is doing, but the mutation must use real platform 
 ## Security and Ownership
 
 Tools execute with the user's Ceerat JWT. Backend services still enforce JWT validity, RBAC, customer ownership, admin-only access, and repository-level scoping.
+
+Customer resume download tools must call the protected `career.CareerProfileService/DownloadResume` backend RPC. The tool may pass a resume id and requested PDF format, but it must not accept or invent `customer_id`; the backend derives customer ownership from the authenticated JWT.
 
 The AI tool layer improves the interface; it is not the security boundary.
 

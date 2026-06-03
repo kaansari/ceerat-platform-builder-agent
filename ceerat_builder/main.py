@@ -145,22 +145,27 @@ def _request_terms(value: str) -> List[str]:
         "bills",
         "build",
         "can",
+        "connect",
         "constraint",
         "create",
         "delete",
         "do",
         "does",
+        "enable",
         "expose",
         "field",
         "fields",
+        "fix",
         "for",
         "foreign",
         "get",
         "has",
         "have",
         "identify",
+        "implement",
         "implementation",
         "index",
+        "integrate",
         "it",
         "its",
         "key",
@@ -180,12 +185,15 @@ def _request_terms(value: str) -> List[str]:
         "route",
         "service",
         "surface",
+        "support",
         "the",
         "to",
         "ui",
         "unique",
         "update",
+        "upgrade",
         "use",
+        "wire",
         "with",
     }
     return [word for word in _words(value) if word not in ignored]
@@ -512,6 +520,50 @@ def _suggested_rbac(contract: SuggestedContract, domain: str) -> List[SuggestedR
     return permissions
 
 
+def _existing_rpc_match(request: str, related_contracts: List[RelatedContract]) -> Optional[RelatedContract]:
+    request_words = set(_request_terms(request))
+    if not request_words:
+        return None
+    for contract in related_contracts:
+        for rpc in contract.rpcs:
+            rpc_words = set(_words(rpc))
+            if rpc_words and rpc_words <= request_words:
+                return contract
+            if len(rpc_words & request_words) >= 2:
+                return contract
+    return None
+
+
+def _suppressed_contract(domain: str, related: Optional[RelatedContract]) -> SuggestedContract:
+    if related:
+        service = related.service.split(".")[-1] if related.service else "ExistingService"
+        return SuggestedContract(
+            package=related.package or domain.replace("-", "_"),
+            service=service,
+            proto_path=related.proto_path,
+            rpcs=[],
+            messages=[],
+        )
+    return SuggestedContract(
+        package=domain.replace("-", "_"),
+        service="ExistingOwner",
+        proto_path="",
+        rpcs=[],
+        messages=[],
+    )
+
+
+def _suppressed_service_skeleton(owner: RecommendedOwner) -> SuggestedServiceSkeleton:
+    return SuggestedServiceSkeleton(
+        owner_project=owner.service_project,
+        packages=[],
+        files=[],
+        startup_wiring=[
+            "No new backend service skeleton suggested because the inventory already matched an existing backend capability.",
+        ],
+    )
+
+
 def _default_requirements_path(project_root: Path) -> Path:
     return project_root / ".ceerat-agent" / "domain-requirements.json"
 
@@ -697,7 +749,31 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
     requirements = _domain_requirements(domain, request, resolved_requirements_file)
     related_contracts = _related_contracts(inventories, request, requirements)
     owner = _recommended_owner(domain, related_contracts)
-    suggested_contract = _suggested_contract_for_related(domain, related_contracts[0]) if related_contracts else _suggested_contract(domain)
+    existing_rpc_owner = _existing_rpc_match(request, related_contracts)
+    suppress_new_backend_skeleton = existing_rpc_owner is not None
+    suggested_contract = (
+        _suppressed_contract(domain, existing_rpc_owner)
+        if suppress_new_backend_skeleton
+        else _suggested_contract_for_related(domain, related_contracts[0]) if related_contracts else _suggested_contract(domain)
+    )
+    suggested_database_objects = [] if suppress_new_backend_skeleton else _suggested_database_objects(domain, requirements)
+    suggested_service_skeleton = (
+        _suppressed_service_skeleton(owner)
+        if suppress_new_backend_skeleton
+        else _suggested_service_skeleton(domain, owner, related_contracts[0] if related_contracts else None)
+    )
+    suggested_rbac_permissions = [] if suppress_new_backend_skeleton else _suggested_rbac(suggested_contract, domain)
+    warnings = [
+        "Local mode is a fact/context packet, not an AI-generated final plan.",
+        "Codex must perform the actual domain reasoning.",
+        "If the request is ambiguous, Codex should ask or state assumptions before implementation.",
+        "Use --mode ai when a cloud environment needs OpenAI to generate the final structured plan without Codex.",
+    ]
+    if suppress_new_backend_skeleton:
+        warnings.insert(
+            0,
+            "New backend skeleton suggestions were suppressed because an existing inventory RPC matched the request.",
+        )
 
     return PlanningPacket(
         request=request,
@@ -713,9 +789,9 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
         domain_requirements=requirements,
         source_evidence=_source_evidence(project_root, owner, related_contracts),
         suggested_contract=suggested_contract,
-        suggested_database_objects=_suggested_database_objects(domain, requirements),
-        suggested_service_skeleton=_suggested_service_skeleton(domain, owner, related_contracts[0] if related_contracts else None),
-        suggested_rbac_permissions=_suggested_rbac(suggested_contract, domain),
+        suggested_database_objects=suggested_database_objects,
+        suggested_service_skeleton=suggested_service_skeleton,
+        suggested_rbac_permissions=suggested_rbac_permissions,
         relevant_contracts=[
             "contracts-repo/docs/contract-inventory.json",
             "contracts-repo/packages/ceerat-contracts/proto",
@@ -769,12 +845,7 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
             "Concrete tests and verification commands.",
             "Integration impact only for existing apps/AI/infra callers.",
         ],
-        warnings=[
-            "Local mode is a fact/context packet, not an AI-generated final plan.",
-            "Codex must perform the actual domain reasoning.",
-            "If the request is ambiguous, Codex should ask or state assumptions before implementation.",
-            "Use --mode ai when a cloud environment needs OpenAI to generate the final structured plan without Codex.",
-        ],
+        warnings=warnings,
     )
 
 

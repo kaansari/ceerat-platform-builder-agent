@@ -54,6 +54,52 @@ apps-repo/docs/app-surface-inventory.json
 
 Use app/AI inventory only to identify follow-up integration impact. Do not plan UI pages, templates, CSS, browser JavaScript, or AI chat UI.
 
+## Noise Suppression Rules
+
+Builder output should separate facts from speculative generation.
+
+Treat action words as verbs, not domain entities. Examples:
+
+```text
+integrate
+wire
+connect
+upgrade
+implement
+expose
+add
+update
+fix
+support
+enable
+```
+
+For a request such as:
+
+```text
+integrate Career resume PDF download in web UI customer UI and AI chat tools
+```
+
+the domain is `career resume download`, not `integrate`.
+
+If inventories already show a matching backend owner, especially an existing RPC, suppress speculative new-service output. Do not emit suggested new proto services, database tables, repositories, or startup skeletons unless the user explicitly asks for a new backend service or no existing owner can be found.
+
+When an existing RPC satisfies the backend capability, output:
+
+- Existing backend owner and method.
+- App or AI callers to update.
+- RBAC/public-method status.
+- Docs and inventory impact.
+- Verification commands.
+- Open questions or permission gaps.
+
+Do not output:
+
+- A new proto/service skeleton.
+- A new database object.
+- A new repository/module.
+- CRUD methods for an action verb.
+
 ## Service Ownership Decision
 
 Use `ceerat-user-service` when the module is tightly coupled to:
@@ -137,7 +183,8 @@ Career caller coordination rules:
 - Admin UI should not become the career operations workspace; keep it focused on user/security/RBAC/system administration.
 - AI career tools belong in `apps-repo/ai/ceerat-agent-service` and must call backend Career RPCs through the platform gRPC client.
 - Company/job/application natural-language requests must resolve real IDs through list/get/search tools before mutation.
-- Customer Career callers can create skill profiles, add skills, create/list resumes, search open jobs, manage a job cart, apply to jobs, apply to cart jobs, and list/view their own applications.
+- Customer Career callers can create skill profiles, add skills, create/list/download resumes, search open jobs, manage a job cart, apply to jobs, apply to cart jobs, and list/view their own applications.
+- Resume download requirements should extend `career.CareerProfileService` with a protected customer-owned RPC. Do not create a generic download service unless a future inventory shows a cross-domain download owner.
 - Customer Career callers must not create companies/jobs, review all applications, or update application status.
 
 ## Backend Service Recipe

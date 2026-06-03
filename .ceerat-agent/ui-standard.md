@@ -19,6 +19,10 @@ Use the inventory to answer:
 
 If a new app surface is added, update the inventory in the same change.
 
+## App Integration Planning
+
+For app integration requests, first classify whether the backend capability already exists. If an existing backend RPC or service owner is found, the plan should stay focused on app routes, same-origin proxies, AI tool profile impact, docs/inventory updates, and verification. Do not propose new backend proto packages, database tables, or service skeletons just because the request uses action words such as `integrate`, `wire`, `connect`, `upgrade`, `implement`, `support`, or `enable`.
+
 ## UI Surfaces
 
 | UI | Purpose | Backend dependency |
@@ -47,7 +51,7 @@ Validated ownership:
 
 Customer Career rules:
 
-- Customers can manage their own skill profiles, profile skills, resumes, job cart, and job applications.
+- Customers can manage their own skill profiles, profile skills, resumes, resume downloads, job cart, and job applications.
 - Customers can search and view open jobs.
 - Customers cannot create companies, create jobs, review all applications, or update application status.
 - Customer identity must be derived by backend Career services from the authenticated JWT and `customers.user_id`; UI requests must not send or trust arbitrary `customer_id` values.

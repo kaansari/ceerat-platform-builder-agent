@@ -504,13 +504,13 @@
         <div class="mini"><code>customer.CustomerService</code><p>Customer profiles and ownership.</p></div>
         <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
         <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
-        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes.</p></div>
+        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, PDF downloads.</p></div>
         <div class="mini"><code>career.JobService</code><p>Global companies/jobs with duplicate company validation.</p></div>
         <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
         <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
         <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global and company create/update paths must reject likely duplicate names. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, company create/update paths must reject likely duplicate names, and resume downloads stay in <code>career.CareerProfileService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">
@@ -543,6 +543,7 @@
       <ul>
         <li>Public methods must be rare: login, registration, token validation, and health checks.</li>
         <li>Customer-owned Career data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
+        <li>Resume downloads fetch by authenticated customer id plus resume id before returning PDF bytes.</li>
         <li>Customer tools and pages must be self-service only.</li>
         <li>Admin-only operations remain admin-only even if an AI tool would make them convenient.</li>
         <li>Do not fix permission errors by widening RBAC without checking portal role/session ownership first.</li>
@@ -605,7 +606,7 @@
   -> ai.AIThreadService THREAD_PROFILE_CUSTOMER
   -> ToolRunner.RunCustomer
   -> customer-safe tools</pre>
-          <p>Tools include customer profile, skill profiles, resumes, job search, job cart, and own applications.</p>
+          <p>Tools include customer profile, skill profiles, resumes, resume PDF download, job search, job cart, and own applications.</p>
         </div>
       </div>
       <div class="rule good">Persisted AI history stores only sanitized user and final assistant messages. System prompts, tool calls, raw tool results, JWTs, and request metadata must not be stored in thread history.</div>
@@ -648,6 +649,7 @@ ceerat-builder check apps</pre>
         </div>
       </div>
       <div class="rule">Durable builder docs should be updated only after implementation, tests/builds, builder checks, and human validation confirm the pattern is reusable.</div>
+      <div class="rule">Noise rule: treat words like integrate, wire, connect, upgrade, implement, expose, fix, support, and enable as action verbs, not domain names. When inventories already contain a matching RPC or service owner, suppress speculative new proto, database, repository, and service skeleton proposals and focus on the existing owner, callers, RBAC, docs, and verification.</div>
     </section>
 
     <section id="sources" class="panel">

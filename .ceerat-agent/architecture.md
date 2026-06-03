@@ -150,6 +150,7 @@ Validated ownership rule:
 - Career company and job records are global operational data for agent/admin workflows, not per-agent-owned records.
 - Career company create/update paths must guard global data quality by rejecting likely duplicate company names after normalization and similarity checks.
 - Customer career profile, resume, job cart, and application methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`. Customer callers must not be trusted to submit arbitrary `customer_id` values.
+- Resume download belongs to `career.CareerProfileService`, not a standalone download service. The backend must fetch the resume by authenticated `customer_id` plus resume id before producing downloadable PDF bytes.
 - Agent-facing career administration belongs in `ceerat-web-ui`; admin UI remains focused on users, roles, RBAC, security, and system administration.
 - Customer-facing Career self-service belongs in `ceerat-customer-ui`. It uses `/customer/career...` pages and `/api/customer/career...` same-origin API bridges that forward the customer's JWT to backend Career gRPC services.
 - AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs. The agent may answer first-party account questions from sanitized `ValidateToken.user` session context.

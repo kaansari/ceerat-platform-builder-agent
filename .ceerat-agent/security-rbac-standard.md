@@ -106,6 +106,7 @@ Examples:
 - Customer cannot list all customers.
 - Customer profile access checks `customers.user_id`.
 - Customer Career profile, resume, job cart, and application access resolves the authenticated user through `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Customer resume downloads must resolve `customer_id` from authenticated context and fetch by `customer_id` plus `resume_id` before returning PDF bytes.
 - Customer service assignments are filtered or denied by owner.
 - Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
 - Order reads and writes are scoped by authenticated user id.

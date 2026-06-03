@@ -30,6 +30,22 @@ Use the inventory to answer:
 
 If a new contract, service, or RPC is added, update the inventories in the same change. The inventories are intentionally simple JSON so humans and builder agents can read them before generating code.
 
+## Planning Noise Suppression
+
+The builder must prefer existing owners over speculative skeletons.
+
+Treat words like `integrate`, `wire`, `connect`, `upgrade`, `implement`, `expose`, `add`, `update`, `fix`, `support`, and `enable` as action verbs. Do not infer those words as domain names.
+
+If contract/service inventories already contain a matching RPC or service boundary, do not propose a new proto package, new service process, new database table, or new CRUD repository skeleton. Instead, report:
+
+- Existing owner and RPC/service boundary.
+- Whether the request is backend implementation, app integration, AI tool integration, or documentation/inventory work.
+- RBAC/public-method status and any permission gap.
+- Caller compatibility impact.
+- Docs, inventories, tests, and verification commands.
+
+Only propose new backend skeletons when the user explicitly requests a new service/backend capability or no existing owner can be found.
+
 ## Core Rule
 
 Frontend apps, admin apps, customer apps, and AI agents must not write directly to the OLTP database. They call backend service APIs. Backend services own:
@@ -579,6 +595,7 @@ career.CareerProfileService/ListMySkillProfiles
 career.CareerProfileService/AddSkillToProfile
 career.CareerProfileService/CreateResume
 career.CareerProfileService/ListMyResumes
+career.CareerProfileService/DownloadResume
 career.JobService/CreateCompany
 career.JobService/ListCompanies
 career.JobService/GetCompany
@@ -609,6 +626,7 @@ Career ownership and security rules:
 - Company create/update must run duplicate validation against existing global companies. Normalize case, punctuation, whitespace, common legal suffixes such as `Inc`, `LLC`, `Ltd`, `Corp`, and acronym punctuation before comparing. Reject exact or highly similar names with a clear validation error.
 - Customer-owned career records include skill profiles, resumes, job carts, and applications.
 - Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Resume downloads are a CareerProfile self-service capability. Fetch the resume by authenticated customer id and resume id before rendering PDF bytes; do not create a generic download service or trust a supplied customer id.
 - Agent/admin job and application review workflows use protected Career RPCs. Apps and AI tools must not write directly to the database.
 - Company keyword search should support practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL.
 
@@ -616,6 +634,7 @@ Career smoke tests should cover:
 
 - Duplicate company validation for case-only, punctuation-only, legal-suffix, acronym, and near-spelling variants such as `iBM`, `I.B.M. LLC`, or `Microsft`.
 - Customer ownership for skill profiles, resumes, cart, and applications.
+- Resume download success, blank id rejection, unsupported format rejection, and PDF byte/content-type response shape.
 - RBAC denial for customer attempts to create companies/jobs or review all applications.
 - Agent/admin create/list/update company and create/search/update/close/reopen job.
 - Job search filters for keyword, company, status, source, location, employment type, and remote type.
