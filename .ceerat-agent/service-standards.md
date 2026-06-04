@@ -59,6 +59,19 @@ Frontend apps, admin apps, customer apps, and AI agents must not write directly 
 - Structured logging.
 - Tests for security, ownership, and persistence behavior.
 
+## External Ingestion Standard
+
+External crawlers, importers, and batch jobs must import platform data through authenticated service APIs, not direct SQL. The backend service that owns the domain owns validation, dedupe, upsert behavior, timestamps, RBAC, and repository persistence.
+
+For recurring external data ingestion:
+
+- Prefer a bulk RPC on the existing owning service over one call per record.
+- Make imports idempotent using source/external identifiers and existing universal domain records.
+- Require an authenticated operational role such as `agent`; do not make import RPCs public.
+- Keep crawler/provider code separate from service client code.
+- Return concise batch counts and per-record results so skipped records are visible.
+- Keep SQL in the service repository layer, never in the crawler/importer.
+
 ## Service Shape
 
 New services should follow this shape unless the repo already has a more specific local pattern:
