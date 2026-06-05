@@ -72,6 +72,33 @@ For recurring external data ingestion:
 - Return concise batch counts and per-record results so skipped records are visible.
 - Keep SQL in the service repository layer, never in the crawler/importer.
 
+## External Provider Submission Standard
+
+External provider actions, such as ATS job application submission, must be split into discovery and submit steps on the existing owning service.
+
+For provider-backed customer mutations:
+
+- Add a read/discovery RPC that returns provider metadata, required fields, supported questions, and manual-application status without submitting.
+- Add a separate submit RPC only when the platform can validate the authenticated customer, target record, selected resume/profile, and explicit confirmation.
+- Require `confirmed=true` for submit RPCs that perform external side effects.
+- Derive `customer_id` from the authenticated JWT by looking up `customers.user_id`; do not trust browser/model-supplied customer ids.
+- Persist sanitized provider status and request/response summaries for audit, but do not store raw provider payloads, resume binary data, tokens, or secrets.
+- Return manual/failure status when provider fields are unsupported instead of guessing answers or weakening validation.
+- Expose AI submit tools only behind a prompt rule that first calls discovery, collects required answers, summarizes the target job/resume/profile, and asks for explicit confirmation.
+
+## Metrics Read Model Standard
+
+Dashboards and KPI surfaces must use service-owned read APIs instead of app-side or crawler-side direct database count queries.
+
+For market-wide or cross-tenant metrics:
+
+- Put the metric contract on the existing domain service that owns the source data.
+- Store bounded read-model snapshots when the metric would otherwise require broad counts or grouping on every page load.
+- Refresh snapshots from domain write/import paths when practical, and refresh lazily only when no snapshot exists.
+- Keep chart buckets bounded and serializable so app payloads stay small.
+- Keep customer-specific metrics scoped by authenticated identity in the service; do not let callers provide arbitrary customer ids for self-service metrics.
+- Treat metrics RPCs as protected methods and update `KnownGRPCMethods`, `DefaultRolePermissions`, docs, inventories, and tests in the same change.
+
 ## Service Shape
 
 New services should follow this shape unless the repo already has a more specific local pattern:
