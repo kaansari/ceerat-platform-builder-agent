@@ -318,7 +318,7 @@ The current tools are intentionally small. Preserve their names unless there is 
 | `get_company` | Read | Get one career company by ID. | `career.JobService/GetCompany` |
 | `update_company` | Mutation | Update a global career company. | `career.JobService/UpdateCompany` |
 | `create_job` | Mutation | Create a global career job for an existing company. | `career.JobService/CreateJob` |
-| `search_jobs` | Read | Search global career jobs. | `career.JobService/SearchJobs` |
+| `search_jobs` | Read | Search global career jobs. Returns compact summaries only; defaults to 10 results and is capped at 20. | `career.JobService/SearchJobs` |
 | `get_job` | Read | Get one career job by ID. | `career.JobService/GetJob` |
 | `close_job` | Mutation | Close a career job. | `career.JobService/CloseJob` |
 | `list_applications_for_job` | Read | List applications submitted to a job. | `career.JobApplicationService/ListApplications` |
@@ -343,7 +343,9 @@ Current input behavior:
 - `get_company` requires `company_id`.
 - `update_company` requires `company_id`; supplied fields are forwarded to the backend company update RPC.
 - `create_job` requires `company_id`, `title`, and `description`; status defaults to `open` and source defaults to `manual` when not provided.
-- `search_jobs` accepts optional keyword, company ID, location, remote type, employment type, status, and source.
+- `search_jobs` accepts optional keyword, company ID, location, remote type, employment type, status, source, and limit. Limit defaults to 10 and is capped at 20.
+- `search_jobs` must return compact summaries only: job id, title, company, location, work mode, employment type, source, and safe source/application URL. It must not return full job descriptions.
+- Use `get_job` for one selected `job_id` when the assistant needs full job details or description.
 - `get_job` and `close_job` require `job_id`.
 - `list_applications_for_job` requires `job_id` and accepts optional application status.
 - `update_application_status` requires `application_id` and status. Expected statuses include `submitted`, `reviewing`, `interview`, `rejected`, `offered`, and `withdrawn`.
@@ -357,7 +359,7 @@ Current output behavior:
 - Assignment mutations return `{"customer_service": ...}`.
 - Order reads/mutations return `{"order": ...}` or `{"orders": [...]}`.
 - Company reads/mutations return `{"company": ...}` or `{"companies": [...]}`.
-- Job reads/mutations return `{"job": ...}` or `{"jobs": [...]}`.
+- Job reads/mutations return `{"job": ...}` or compact `search_jobs` payloads containing `jobs`, `count`, `result_limit`, and a details instruction.
 - Application reads/mutations return `{"application": ...}` or `{"applications": [...]}`.
 
 ## Platform gRPC Client Standard
@@ -547,7 +549,7 @@ For example:
 - If the user asks for companies, use `list_companies`.
 - Before creating or renaming a career company, search with `list_companies` using the proposed real name. If a likely existing company appears, ask for confirmation instead of creating a duplicate. Backend duplicate validation remains the final authority.
 - Before creating a career job from a company name, use `list_companies` to resolve the company. If multiple companies match, ask the user to choose.
-- Before closing a career job from a title, use `search_jobs` to resolve the job. If multiple jobs match, ask the user to choose.
+- Before closing a career job from a title, use `search_jobs` to resolve the job. If multiple jobs match, ask the user to choose, then use `get_job` only for the selected job when details are needed.
 - Before updating an application status from a natural language applicant/job reference, use job/application list APIs to resolve a real `application_id`.
 
 The model may explain what it is doing, but the mutation must use real platform IDs from service APIs.

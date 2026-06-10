@@ -53,6 +53,10 @@ Customer Career rules:
 
 - Customers can manage their own skill profiles, profile skills, resumes, resume downloads, job cart, and job applications.
 - Customers can search and view open jobs.
+- Customer job search/list pages must call same-origin Ceerat API wrappers such as `/api/jobs/search`; frontend code must not call Typesense or external ATS providers directly.
+- Job search UI should keep keyword and location first, with mobile-friendly expandable filters for company, work mode, employment type, department, seniority, skills, country, source, and sort.
+- Show customer-friendly facet labels and counts when available, such as `Databricks (784)` or `Remote (161)`. Do not expose implementation words like `Typesense` or raw search metadata in UI copy.
+- Keep `/customer/career/jobs` as the search/list page and `/customer/career/jobs/{id}` as the separate detail page. Do not render the search/list page under the detail route.
 - Customers cannot create companies, create jobs, review all applications, or update application status.
 - Customer identity must be derived by backend Career services from the authenticated JWT and `customers.user_id`; UI requests must not send or trust arbitrary `customer_id` values.
 - The browser must call only same-origin customer UI routes. The app server forwards the JWT to backend gRPC.

@@ -664,6 +664,11 @@ Career ownership and security rules:
 
 - Companies and jobs are global operational records for agent/admin workflows.
 - Company create/update must run duplicate validation against existing global companies. Normalize case, punctuation, whitespace, common legal suffixes such as `Inc`, `LLC`, `Ltd`, `Corp`, and acronym punctuation before comparing. Reject exact or highly similar names with a clear validation error.
+- Job search is owned by `career.JobService/SearchJobs`. Browser apps, AI tools, crawlers, and admin/customer UIs must not call Typesense directly or receive the Typesense API key.
+- Typesense-backed job search is an implementation detail of `ceerat-user-service`; Postgres remains the source of truth and database fallback must preserve open-job enforcement.
+- Customer job searches must be forced to open jobs from authenticated JWT context. Do not trust browser-supplied status or customer ownership fields for customer search.
+- Search request fields may include keyword, company name, company id, location, work mode, employment type, department, seniority, skills, country, source, sort, page size, and page token.
+- Search responses may include total/page metadata and customer-friendly facet buckets for company, location, source, work mode, employment type, department, seniority, skills, and country. Hide negative boolean work-mode buckets such as `false` remote/hybrid/onsite values.
 - Customer-owned career records include skill profiles, resumes, job carts, and applications.
 - Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
 - Resume downloads are a CareerProfile self-service capability. Fetch the resume by authenticated customer id and resume id before rendering PDF bytes; do not create a generic download service or trust a supplied customer id.
