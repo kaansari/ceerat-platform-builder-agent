@@ -52,6 +52,7 @@ get_order
 update_order_status
 add_service_to_order
 remove_service_from_order
+get_current_user
 create_company
 list_companies
 get_company
@@ -60,6 +61,8 @@ create_job
 search_jobs
 get_job
 close_job
+download_resume
+get_career_market_metrics
 list_applications_for_job
 update_application_status
 ```
@@ -321,6 +324,8 @@ The current tools are intentionally small. Preserve their names unless there is 
 | `search_jobs` | Read | Search global career jobs. Returns compact summaries only; defaults to 10 results and is capped at 20. | `career.JobService/SearchJobs` |
 | `get_job` | Read | Get one career job by ID. | `career.JobService/GetJob` |
 | `close_job` | Mutation | Close a career job. | `career.JobService/CloseJob` |
+| `download_resume` | Read | Prepare an authenticated same-origin PDF download link for a resume. | `career.CareerProfileService/DownloadResume` |
+| `get_career_market_metrics` | Read | Return service-owned aggregate Career market metrics. | `career.JobService/GetCareerMarketMetrics` |
 | `list_applications_for_job` | Read | List applications submitted to a job. | `career.JobApplicationService/ListApplications` |
 | `update_application_status` | Mutation | Update a job application status. | `career.JobApplicationService/UpdateApplicationStatus` |
 
@@ -347,6 +352,8 @@ Current input behavior:
 - `search_jobs` must return compact summaries only: job id, title, company, location, work mode, employment type, source, and safe source/application URL. It must not return full job descriptions.
 - Use `get_job` for one selected `job_id` when the assistant needs full job details or description.
 - `get_job` and `close_job` require `job_id`.
+- `download_resume` requires a real `resume_id` returned by an authorized list/get resume flow. It returns a same-origin download action/link, not raw PDF bytes in the chat transcript.
+- `get_career_market_metrics` takes no model-supplied customer or user id and returns aggregate market/customer-safe KPI data only.
 - `list_applications_for_job` requires `job_id` and accepts optional application status.
 - `update_application_status` requires `application_id` and status. Expected statuses include `submitted`, `reviewing`, `interview`, `rejected`, `offered`, and `withdrawn`.
 
@@ -360,6 +367,8 @@ Current output behavior:
 - Order reads/mutations return `{"order": ...}` or `{"orders": [...]}`.
 - Company reads/mutations return `{"company": ...}` or `{"companies": [...]}`.
 - Job reads/mutations return `{"job": ...}` or compact `search_jobs` payloads containing `jobs`, `count`, `result_limit`, and a details instruction.
+- Resume download tools return a small download action containing label, resume id, file name/content type if available, and same-origin `download_url`; never include base64 PDF bytes in tool-visible assistant text.
+- Career metrics tools return aggregate KPI/count buckets only, not raw job/application/customer rows.
 - Application reads/mutations return `{"application": ...}` or `{"applications": [...]}`.
 
 ## Platform gRPC Client Standard

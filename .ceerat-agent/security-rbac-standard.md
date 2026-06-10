@@ -106,6 +106,8 @@ Examples:
 - Customer cannot list all customers.
 - Customer profile access checks `customers.user_id`.
 - Customer Career profile, resume, job cart, and application access resolves the authenticated user through `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Customer employment records and resume-employment attachments resolve ownership through authenticated `customers.user_id`. Attachment mutations must verify ownership of both the resume and the employment record.
+- Customer Career workflow metrics resolve customer identity from authenticated context. Global market metrics may be customer-readable only as sanitized aggregate counts/buckets with no private customer or application details.
 - Customer resume downloads must resolve `customer_id` from authenticated context and fetch by `customer_id` plus `resume_id` before returning PDF bytes.
 - Customer external ATS application submissions must resolve `customer_id` from authenticated context, require explicit confirmation, validate resume/profile ownership, and store only sanitized provider status/audit summaries.
 - Customer service assignments are filtered or denied by owner.

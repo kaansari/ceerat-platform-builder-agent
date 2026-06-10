@@ -499,7 +499,7 @@
             <li>Customer profiles and customer ownership flows.</li>
             <li>Service catalog, product catalog, and carts.</li>
             <li>Orders and order service lines.</li>
-            <li>Career companies, jobs, skill profiles, resumes, job carts, and applications.</li>
+            <li>Career companies, jobs, skill profiles, resumes, reusable employment records, job carts, metrics, and applications.</li>
             <li>RBAC roles, permissions, cache, and admin hooks.</li>
           </ul>
         </div>
@@ -510,13 +510,13 @@
         <div class="mini"><code>customer.CustomerService</code><p>Customer profiles and ownership.</p></div>
         <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
         <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
-        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, PDF downloads.</p></div>
-        <div class="mini"><code>career.JobService</code><p>Global companies/jobs, job search, market metrics, and duplicate company validation.</p></div>
+        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, reusable employment records, PDF downloads, and customer Career metrics.</p></div>
+        <div class="mini"><code>career.JobService</code><p>Global companies/jobs, ATS import, job search, market metrics, and duplicate company validation.</p></div>
         <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
         <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
         <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, company create/update paths must reject likely duplicate names, job search stays behind <code>career.JobService/SearchJobs</code>, and resume downloads stay in <code>career.CareerProfileService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">
@@ -549,8 +549,10 @@
       <ul>
         <li>Public methods must be rare: login, registration, token validation, and health checks.</li>
         <li>Customer-owned Career data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
-        <li>Resume downloads fetch by authenticated customer id plus resume id before returning PDF bytes.</li>
+        <li>Employment attachment flows verify ownership of both the resume and the reusable employment record.</li>
+        <li>Resume update/delete/download flows fetch by authenticated customer id plus resume id; exports include profile skills and attached employment records.</li>
         <li>Job search requests from customer surfaces are forced to open jobs; do not trust browser-supplied status for customer search.</li>
+        <li>Market/customer Career metrics are protected service-owned aggregates; apps must not compute broad counts from paginated search or direct database access.</li>
         <li>Typesense API keys stay server-side in <code>ceerat-user-service</code>; frontend and AI tools must never call Typesense directly.</li>
         <li>Customer tools and pages must be self-service only.</li>
         <li>Admin-only operations remain admin-only even if an AI tool would make them convenient.</li>
@@ -605,7 +607,7 @@
   -> ai.AIThreadService THREAD_PROFILE_AGENT
   -> ToolRunner.Run
   -> agent/admin tools</pre>
-          <p>Tools include customers, services, orders, companies, jobs, and application review operations.</p>
+          <p>Tools include customers, services, orders, companies, jobs, career metrics, resume download actions, and application review operations.</p>
         </div>
         <div class="mini">
           <h3>Customer Chat</h3>
@@ -615,7 +617,7 @@
   -> ai.AIThreadService THREAD_PROFILE_CUSTOMER
   -> ToolRunner.RunCustomer
   -> customer-safe tools</pre>
-          <p>Tools include customer profile, skill profiles, resumes, resume PDF download, job search, job cart, and own applications.</p>
+          <p>Tools include customer profile, skill profiles, resumes, resume PDF download, career metrics, job search, job cart, and own applications.</p>
         </div>
       </div>
       <div class="rule good"><code>search_jobs</code> returns compact job summaries only. It defaults to 10 results, is capped at 20, and excludes full descriptions. Use <code>get_job</code> for one selected job when details are needed.</div>
@@ -670,6 +672,8 @@
         <li>Customer Career home is a simple navigation hub with cards for jobs, resumes, skill profiles, job cart, and applications.</li>
         <li>Career pages follow separate list, create, detail, and edit routes with consistent navigation, breadcrumb, and back actions.</li>
         <li>Reusable employment records are customer-owned Career records. Resumes attach them through join records instead of duplicating employment history per resume.</li>
+        <li>Career market and customer workflow KPIs come from service-owned aggregate/read-model APIs, not app-side broad count queries.</li>
+        <li>ATS crawlers import universal jobs through <code>ImportATSJobs</code> with an agent token; they do not write directly to Postgres or Typesense.</li>
         <li>Resume view/download includes profile skills and attached employment records, keeps profile content first, and avoids pipe separators in export text.</li>
         <li>Greenhouse application flow remains discover, confirm, then submit or manual fallback. UI, crawlers, and AI tools do not submit directly to external ATS providers.</li>
       </ul>

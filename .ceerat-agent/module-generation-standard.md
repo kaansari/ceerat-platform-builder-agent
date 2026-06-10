@@ -174,7 +174,7 @@ Career is validated as a `proto/career` module inside `ceerat-user-service`, not
 /career.JobApplicationService/*
 ```
 
-Use this ownership when requirements involve companies, jobs, skill profiles, resumes, job carts, or job applications unless the inventories show a newer owner.
+Use this ownership when requirements involve companies, jobs, skill profiles, profile skills, resumes, reusable employment records, resume employment attachments, job carts, Career metrics, ATS import, or job applications unless the inventories show a newer owner.
 
 Career caller coordination rules:
 
@@ -183,8 +183,11 @@ Career caller coordination rules:
 - Admin UI should not become the career operations workspace; keep it focused on user/security/RBAC/system administration.
 - AI career tools belong in `apps-repo/ai/ceerat-agent-service` and must call backend Career RPCs through the platform gRPC client.
 - Company/job/application natural-language requests must resolve real IDs through list/get/search tools before mutation.
-- Customer Career callers can create skill profiles, add skills, create/list/download resumes, search open jobs, manage a job cart, apply to jobs, apply to cart jobs, and list/view their own applications.
-- Resume download requirements should extend `career.CareerProfileService` with a protected customer-owned RPC. Do not create a generic download service unless a future inventory shows a cross-domain download owner.
+- Customer Career callers can create/update skill profiles, add/update skills, create/list/update/delete/download resumes, manage reusable employment records, attach employment records to resumes, search open jobs, manage a job cart, apply to jobs, apply to cart jobs, and list/view their own applications.
+- Resume download/export requirements should extend `career.CareerProfileService` with protected customer-owned RPCs and same-origin app download routes. Do not create a generic download service unless a future inventory shows a cross-domain download owner.
+- ATS import requirements should extend `career.JobService/ImportATSJobs`; importers authenticate as agents and never write directly to Postgres or Typesense.
+- Career market/customer KPI requirements should use service-owned aggregate/read models and Career RPCs, not app-side broad count queries.
+- External ATS application requirements should extend `career.JobApplicationService` with discover/confirm/submit or manual fallback behavior, not browser/crawler/AI direct provider submission.
 - Customer Career callers must not create companies/jobs, review all applications, or update application status.
 
 ## Backend Service Recipe

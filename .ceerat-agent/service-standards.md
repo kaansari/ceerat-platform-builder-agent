@@ -633,9 +633,22 @@ Career methods are owned by `proto/career` inside `ceerat-user-service`:
 career.CareerProfileService/CreateSkillProfile
 career.CareerProfileService/ListMySkillProfiles
 career.CareerProfileService/AddSkillToProfile
+career.CareerProfileService/UpdateSkillInProfile
 career.CareerProfileService/CreateResume
 career.CareerProfileService/ListMyResumes
+career.CareerProfileService/UpdateResume
+career.CareerProfileService/DeleteResume
 career.CareerProfileService/DownloadResume
+career.CareerProfileService/CreateEmploymentRecord
+career.CareerProfileService/ListMyEmploymentRecords
+career.CareerProfileService/GetEmploymentRecord
+career.CareerProfileService/UpdateEmploymentRecord
+career.CareerProfileService/ArchiveEmploymentRecord
+career.CareerProfileService/AttachEmploymentRecordToResume
+career.CareerProfileService/DetachEmploymentRecordFromResume
+career.CareerProfileService/UpdateResumeEmploymentRecord
+career.CareerProfileService/ListResumeEmploymentRecords
+career.CareerProfileService/GetMyCareerMetrics
 career.JobService/CreateCompany
 career.JobService/ListCompanies
 career.JobService/GetCompany
@@ -646,6 +659,8 @@ career.JobService/SearchJobs
 career.JobService/UpdateJob
 career.JobService/CloseJob
 career.JobService/ReopenJob
+career.JobService/ImportATSJobs
+career.JobService/GetCareerMarketMetrics
 career.JobCartService/GetJobCart
 career.JobCartService/AddJobToCart
 career.JobCartService/UpdateCartItemProfile
@@ -653,6 +668,8 @@ career.JobCartService/RemoveJobFromCart
 career.JobCartService/ClearJobCart
 career.JobApplicationService/ApplyToJob
 career.JobApplicationService/ApplyToCartJobs
+career.JobApplicationService/DiscoverJobApplication
+career.JobApplicationService/SubmitJobApplication
 career.JobApplicationService/ListMyApplications
 career.JobApplicationService/GetMyApplication
 career.JobApplicationService/ListApplications
@@ -664,25 +681,34 @@ Career ownership and security rules:
 
 - Companies and jobs are global operational records for agent/admin workflows.
 - Company create/update must run duplicate validation against existing global companies. Normalize case, punctuation, whitespace, common legal suffixes such as `Inc`, `LLC`, `Ltd`, `Corp`, and acronym punctuation before comparing. Reject exact or highly similar names with a clear validation error.
+- ATS crawlers and importers must call `career.JobService/ImportATSJobs` with an authenticated agent token. They must not write companies/jobs directly to Postgres or Typesense. Imports are batch-oriented, idempotent by source/external ids, and should refresh read-optimized market metrics after successful job upserts.
 - Job search is owned by `career.JobService/SearchJobs`. Browser apps, AI tools, crawlers, and admin/customer UIs must not call Typesense directly or receive the Typesense API key.
 - Typesense-backed job search is an implementation detail of `ceerat-user-service`; Postgres remains the source of truth and database fallback must preserve open-job enforcement.
 - Customer job searches must be forced to open jobs from authenticated JWT context. Do not trust browser-supplied status or customer ownership fields for customer search.
 - Search request fields may include keyword, company name, company id, location, work mode, employment type, department, seniority, skills, country, source, sort, page size, and page token.
 - Search responses may include total/page metadata and customer-friendly facet buckets for company, location, source, work mode, employment type, department, seniority, skills, and country. Hide negative boolean work-mode buckets such as `false` remote/hybrid/onsite values.
-- Customer-owned career records include skill profiles, resumes, job carts, and applications.
+- Career market metrics are service-owned read models. Customer UI and AI tools should use `GetCareerMarketMetrics` and `GetMyCareerMetrics` instead of broad app-side count queries or inferring totals from paginated search responses.
+- Customer-owned career records include skill profiles, profile skills, resumes, reusable employment records, resume employment attachments, job carts, and applications.
 - Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
-- Resume downloads are a CareerProfile self-service capability. Fetch the resume by authenticated customer id and resume id before rendering PDF bytes; do not create a generic download service or trust a supplied customer id.
+- Employment records are reusable customer-owned work-history records, not skills and not embedded resume-only fields. Resumes attach them through join records that can carry sort order, include/exclude, tailored title, and tailored summary. Attach/detach/update flows must verify ownership of both the resume and the employment record.
+- Resume create/list/update/delete/download are CareerProfile self-service capabilities. Fetch the resume by authenticated customer id and resume id before mutation or rendering PDF bytes; do not create a generic download service or trust a supplied customer id. Delete/archive behavior must handle dependent applications safely and should avoid losing historical application snapshots.
+- Resume PDF export should include the resume/profile content, profile skills, and attached employment records in a readable full-page layout. Do not put raw pipe separators into export text.
+- External ATS application submission is owned by `career.JobApplicationService`: discover provider requirements first, require explicit customer confirmation before submission, validate selected resume/profile ownership, never invent answers to required provider questions, and fall back with `manual_application_required` plus application URL when provider submission is unsupported.
 - Agent/admin job and application review workflows use protected Career RPCs. Apps and AI tools must not write directly to the database.
 - Company keyword search should support practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL.
 
 Career smoke tests should cover:
 
 - Duplicate company validation for case-only, punctuation-only, legal-suffix, acronym, and near-spelling variants such as `iBM`, `I.B.M. LLC`, or `Microsft`.
-- Customer ownership for skill profiles, resumes, cart, and applications.
-- Resume download success, blank id rejection, unsupported format rejection, and PDF byte/content-type response shape.
+- Customer ownership for skill profiles, profile skills, resumes, employment records, resume employment attachments, cart, and applications.
+- Resume update/delete/download success, blank id rejection, unsupported format rejection, dependent application safety, and PDF byte/content-type response shape.
+- Employment record attach/detach/update ownership checks for both resume and employment record, including per-resume sort/include/tailoring fields.
+- Career market metrics refresh after import, safe global aggregate reads, and authenticated customer workflow metrics.
+- ATS import idempotency by source/external ids, batch validation, customer rejection, and indexing/metrics failures not breaking successful database import.
 - RBAC denial for customer attempts to create companies/jobs or review all applications.
 - Agent/admin create/list/update company and create/search/update/close/reopen job.
-- Job search filters for keyword, company, status, source, location, employment type, and remote type.
+- Job search filters for keyword, company, status, source, location, employment type, remote type, department, seniority, skills, country, facets, and pagination.
+- External application discovery, explicit confirmation rejection, sanitized provider audit records, and manual fallback for unsupported Greenhouse requirements.
 - Application list/update-status flows for agent/admin.
 - AI tool permission behavior when Career tools are involved.
 

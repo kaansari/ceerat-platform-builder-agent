@@ -1,5 +1,75 @@
 {
   "domains": {
+    "career": {
+      "must_have_fields": [
+        {
+          "name": "jobs.source_external_identity",
+          "requirement": "Imported ATS jobs must preserve source, source_url, and external_job_id for idempotency, provider detail lookup, and application fallback.",
+          "implementation_hint": "Keep source/source_url/external_job_id on jobs and source/external_id/source_url on companies. Use company_id + source + external_job_id as the natural imported job identity."
+        },
+        {
+          "name": "employment_records.customer_id",
+          "requirement": "Employment records are reusable customer-owned Career records, not skills and not resume-only text.",
+          "implementation_hint": "Scope employment_records by authenticated customer id and attach to resumes through resume_employment_records."
+        },
+        {
+          "name": "job_application_submissions.sanitized_provider_audit",
+          "requirement": "External provider submissions must retain sanitized audit status without storing raw sensitive provider payloads.",
+          "implementation_hint": "Store provider name/status/application URL and sanitized failure/status metadata; do not store raw response bodies, tokens, or resume binary data."
+        }
+      ],
+      "must_have_relationships": [
+        {
+          "name": "customer_to_career_records",
+          "requirement": "Customer-owned skill profiles, resumes, employment records, carts, and applications must resolve ownership from authenticated JWT context.",
+          "implementation_hint": "Handlers look up customers.user_id and repositories scope by customer_id. Do not trust request-supplied customer_id for customer self-service."
+        },
+        {
+          "name": "resume_to_employment_records",
+          "requirement": "A resume can attach multiple reusable employment records, and one employment record can be reused across resumes.",
+          "implementation_hint": "Use resume_employment_records with sort_order, include, tailored_title, and tailored_summary. Verify ownership of both sides before mutation."
+        },
+        {
+          "name": "job_to_application_submission",
+          "requirement": "Internal applications and external ATS provider submissions are separate records.",
+          "implementation_hint": "Preserve job_applications as the internal application record and job_application_submissions as sanitized provider submission/audit records."
+        }
+      ],
+      "business_rules": [
+        {
+          "name": "service_owned_search",
+          "requirement": "Career job search is owned by career.JobService/SearchJobs and may use Typesense only behind ceerat-user-service.",
+          "implementation_hint": "Browser apps, crawlers, and AI tools call Ceerat APIs/gRPC only. Keep Postgres as source of truth and hide Typesense API keys from frontends."
+        },
+        {
+          "name": "service_owned_metrics",
+          "requirement": "Career market and customer workflow KPIs are service-owned read models, not app-side broad count queries.",
+          "implementation_hint": "Use GetCareerMarketMetrics and GetMyCareerMetrics; refresh market metrics after safe ATS import where practical."
+        },
+        {
+          "name": "external_application_consent",
+          "requirement": "External ATS submissions require discovery, explicit customer confirmation, supported required fields, and manual fallback when unsafe.",
+          "implementation_hint": "Never let UI, crawlers, or AI submit directly to providers. Do not invent answers to required provider questions."
+        }
+      ],
+      "workflow_rules": [
+        {
+          "name": "customer_career_navigation",
+          "requirement": "Customer Career pages use separate overview, list/search, create, detail, and edit surfaces with consistent navigation and breadcrumbs.",
+          "implementation_hint": "Use /customer/career/{entity}, /new, /{id}, and /{id}/edit routes where practical. Detail pages should not render list/search below them."
+        },
+        {
+          "name": "resume_export",
+          "requirement": "Resume view/download should include profile content, profile skills, and attached employment records in readable full-page output.",
+          "implementation_hint": "Avoid raw pipe separators and do not expose raw PDF bytes in chat or page text."
+        },
+        {
+          "name": "ai_job_search_limits",
+          "requirement": "AI search_jobs returns compact capped summaries and uses get_job for full detail.",
+          "implementation_hint": "Default AI job search to 10 results, cap at 20, and exclude full descriptions from search result payloads."
+        }
+      ]
+    },
     "invoice": {
       "must_have_fields": [
         {
