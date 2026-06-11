@@ -30,6 +30,11 @@
           "implementation_hint": "Use resume_employment_records with sort_order, include, tailored_title, and tailored_summary. Verify ownership of both sides before mutation."
         },
         {
+          "name": "resume_text_import",
+          "requirement": "Resume text upload/import must parse and persist through CareerProfile service APIs, not through direct app, AI, or database writes.",
+          "implementation_hint": "Use ParseResumeText for .txt/.md validation and draft extraction, then ImportResumeDraft or batch CareerProfile APIs to create skill profile, skills, employment records, resume, and attachments under authenticated customer ownership."
+        },
+        {
           "name": "job_to_application_submission",
           "requirement": "Internal applications and external ATS provider submissions are separate records.",
           "implementation_hint": "Preserve job_applications as the internal application record and job_application_submissions as sanitized provider submission/audit records."

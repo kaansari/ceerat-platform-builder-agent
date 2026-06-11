@@ -325,6 +325,8 @@ The current tools are intentionally small. Preserve their names unless there is 
 | `get_job` | Read | Get one career job by internal `job_id` returned by search. | `career.JobService/GetJob` |
 | `close_job` | Mutation | Close a career job. | `career.JobService/CloseJob` |
 | `download_resume` | Read | Prepare an authenticated same-origin PDF download link for a resume. | `career.CareerProfileService/DownloadResume` |
+| `parse_resume_text` | Read/parse | Validate and parse pasted or uploaded text/markdown resume content into a draft without persisting records. | `career.CareerProfileService/ParseResumeText` |
+| `import_resume_draft` | Mutation | Create a customer-owned skill profile, batch skills, reusable employment records, resume, and resume attachments from a reviewed draft in one service-owned call. | `career.CareerProfileService/ImportResumeDraft` |
 | `get_career_market_metrics` | Read | Return service-owned aggregate Career market metrics. | `career.JobService/GetCareerMarketMetrics` |
 | `list_applications_for_job` | Read | List applications submitted to a job. | `career.JobApplicationService/ListApplications` |
 | `update_application_status` | Mutation | Update a job application status. | `career.JobApplicationService/UpdateApplicationStatus` |
@@ -356,6 +358,8 @@ Current input behavior:
 - Use `get_job` for one selected internal `job_id` when the assistant needs full job details or description. Never call `get_job` with a bullet number, title, source URL, or external ATS id.
 - `get_job` and `close_job` require `job_id`.
 - `download_resume` requires a real `resume_id` returned by an authorized list/get resume flow. It returns a same-origin download action/link, not raw PDF bytes in the chat transcript.
+- `parse_resume_text` accepts customer-provided `.txt` or `.md` resume text only. It does not persist records and should not be used for PDFs/images unless another trusted parser has extracted text first.
+- `import_resume_draft` should be preferred over one-by-one skill/employment/resume tools for resume upload creation because it keeps batch creation inside `CareerProfileService` and avoids exhausting the AI tool loop. Do not invent missing employers, dates, titles, or skills; ask or omit.
 - `get_career_market_metrics` takes no model-supplied customer or user id and returns aggregate market/customer-safe KPI data only.
 - `list_applications_for_job` requires `job_id` and accepts optional application status.
 - `update_application_status` requires `application_id` and status. Expected statuses include `submitted`, `reviewing`, `interview`, `rejected`, `offered`, and `withdrawn`.
@@ -371,6 +375,7 @@ Current output behavior:
 - Company reads/mutations return `{"company": ...}` or `{"companies": [...]}`.
 - Job reads/mutations return `{"job": ...}` or compact `search_jobs` payloads containing `jobs`, `count`, `result_limit`, and a details instruction.
 - Resume download tools return a small download action containing label, resume id, file name/content type if available, and same-origin `download_url`; never include base64 PDF bytes in tool-visible assistant text.
+- Resume parse/import tools return parsed drafts, created skill profile, skills, reusable employment records, resume, resume employment attachments, and warnings. Raw uploaded resume text must remain transient request context and should not be written to AI thread history.
 - Career metrics tools return aggregate KPI/count buckets only, not raw job/application/customer rows.
 - Application reads/mutations return `{"application": ...}` or `{"applications": [...]}`.
 

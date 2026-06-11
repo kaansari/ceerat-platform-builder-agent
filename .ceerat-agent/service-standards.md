@@ -633,18 +633,23 @@ Career methods are owned by `proto/career` inside `ceerat-user-service`:
 career.CareerProfileService/CreateSkillProfile
 career.CareerProfileService/ListMySkillProfiles
 career.CareerProfileService/AddSkillToProfile
+career.CareerProfileService/BatchAddSkillsToProfile
 career.CareerProfileService/UpdateSkillInProfile
 career.CareerProfileService/CreateResume
+career.CareerProfileService/ParseResumeText
+career.CareerProfileService/ImportResumeDraft
 career.CareerProfileService/ListMyResumes
 career.CareerProfileService/UpdateResume
 career.CareerProfileService/DeleteResume
 career.CareerProfileService/DownloadResume
 career.CareerProfileService/CreateEmploymentRecord
+career.CareerProfileService/BatchCreateEmploymentRecords
 career.CareerProfileService/ListMyEmploymentRecords
 career.CareerProfileService/GetEmploymentRecord
 career.CareerProfileService/UpdateEmploymentRecord
 career.CareerProfileService/ArchiveEmploymentRecord
 career.CareerProfileService/AttachEmploymentRecordToResume
+career.CareerProfileService/BatchAttachEmploymentRecordsToResume
 career.CareerProfileService/DetachEmploymentRecordFromResume
 career.CareerProfileService/UpdateResumeEmploymentRecord
 career.CareerProfileService/ListResumeEmploymentRecords
@@ -690,6 +695,8 @@ Career ownership and security rules:
 - Career market metrics are service-owned read models. Customer UI and AI tools should use `GetCareerMarketMetrics` and `GetMyCareerMetrics` instead of broad app-side count queries or inferring totals from paginated search responses.
 - Customer-owned career records include skill profiles, profile skills, resumes, reusable employment records, resume employment attachments, job carts, and applications.
 - Customer methods must derive customer identity from the authenticated JWT by looking up `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Resume text upload/import is a CareerProfile service-owned workflow. Clients may send text/markdown to `ParseResumeText`, then persist with `ImportResumeDraft` or focused batch CareerProfile RPCs. Apps, AI tools, crawlers, and browser code must not create profile skills, employment records, resume attachments, or resumes through direct database writes.
+- Resume upload parsing must reject blank, oversized, or unsupported file types before persistence. Do not log raw uploaded resume text; keep extracted profile/resume content inside the intended customer-owned Career records.
 - Employment records are reusable customer-owned work-history records, not skills and not embedded resume-only fields. Resumes attach them through join records that can carry sort order, include/exclude, tailored title, and tailored summary. Attach/detach/update flows must verify ownership of both the resume and the employment record.
 - Resume create/list/update/delete/download are CareerProfile self-service capabilities. Fetch the resume by authenticated customer id and resume id before mutation or rendering PDF bytes; do not create a generic download service or trust a supplied customer id. Delete/archive behavior must handle dependent applications safely and should avoid losing historical application snapshots.
 - Resume PDF export should include the resume/profile content, profile skills, and attached employment records in a readable full-page layout. Do not put raw pipe separators into export text.

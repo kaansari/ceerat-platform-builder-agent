@@ -617,10 +617,11 @@
   -> ai.AIThreadService THREAD_PROFILE_CUSTOMER
   -> ToolRunner.RunCustomer
   -> customer-safe tools</pre>
-          <p>Tools include customer profile, skill profiles, resumes, resume PDF download, career metrics, job search, job cart, and own applications.</p>
+          <p>Tools include customer profile, skill profiles, resume text parse/import, resumes, resume PDF download, career metrics, job search, job cart, and own applications.</p>
         </div>
       </div>
       <div class="rule good"><code>search_jobs</code> returns compact job summaries only. It defaults to 10 results, is capped at 20, and excludes full descriptions. Customer-visible lists show title, company, location, posting date when available, and a <code>More info</code> link to <code>source_url</code>; they must not show internal GUIDs. Preserve the number-to-<code>job_id</code> mapping in hidden <code>ceerat_job_refs</code> metadata and use <code>get_job</code> with that internal id only.</div>
+      <div class="rule good">Customer resume text uploads in chat are transient: the customer UI forwards text/markdown attachment content to <code>ceerat-agent-service</code> only for the current turn, the assistant uses <code>parse_resume_text</code> then <code>import_resume_draft</code>, and persisted AI thread history stores only the normal user message plus final assistant reply.</div>
       <div class="rule good">Persisted AI history stores only sanitized user and final assistant messages. System prompts, tool calls, raw tool results, JWTs, and request metadata must not be stored in thread history.</div>
       <div class="rule warning">The AI tool layer is not the security boundary. Tools execute with the user's Ceerat JWT, and backend services still enforce JWT, RBAC, ownership, and repository scoping.</div>
       <h3 style="margin-top: 18px;">Customer Chat Smoke Test</h3>
@@ -672,6 +673,7 @@
         <li>Customer Career home is a simple navigation hub with cards for jobs, resumes, skill profiles, job cart, and applications.</li>
         <li>Career pages follow separate list, create, detail, and edit routes with consistent navigation, breadcrumb, and back actions.</li>
         <li>Reusable employment records are customer-owned Career records. Resumes attach them through join records instead of duplicating employment history per resume.</li>
+        <li>Resume text upload/import is service-owned by <code>CareerProfileService</code>: clients parse text or markdown through <code>ParseResumeText</code>, then persist reviewed drafts through <code>ImportResumeDraft</code> or focused batch CareerProfile RPCs.</li>
         <li>Career market and customer workflow KPIs come from service-owned aggregate/read-model APIs, not app-side broad count queries.</li>
         <li>ATS crawlers import universal jobs through <code>ImportATSJobs</code> with an agent token; they do not write directly to Postgres or Typesense.</li>
         <li>Resume view/download includes profile skills and attached employment records, keeps profile content first, and avoids pipe separators in export text.</li>
