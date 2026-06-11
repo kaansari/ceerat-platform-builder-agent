@@ -591,6 +591,7 @@
           <div class="box"><strong>Threads</strong><span>Uses shared browser path <code>/api/agent/threads</code> -> <code>/customer/threads</code>.</span></div>
           <div class="box"><strong>Career</strong><span>Uses <code>/api/customer/career/*</code>.</span></div>
           <div class="box"><strong>Jobs</strong><span><code>/customer/career/jobs</code> lists/searches; <code>/customer/career/jobs/{id}</code> shows details.</span></div>
+          <div class="box"><strong>Resume Import</strong><span><code>/customer/career/resumes/import</code> parses text/markdown, reviews the draft, then imports through CareerProfile APIs.</span></div>
         </div>
       </div>
     </section>
@@ -673,7 +674,7 @@
         <li>Customer Career home is a simple navigation hub with cards for jobs, resumes, skill profiles, job cart, and applications.</li>
         <li>Career pages follow separate list, create, detail, and edit routes with consistent navigation, breadcrumb, and back actions.</li>
         <li>Reusable employment records are customer-owned Career records. Resumes attach them through join records instead of duplicating employment history per resume.</li>
-        <li>Resume text upload/import is service-owned by <code>CareerProfileService</code>: clients parse text or markdown through <code>ParseResumeText</code>, then persist reviewed drafts through <code>ImportResumeDraft</code> or focused batch CareerProfile RPCs.</li>
+        <li>Resume text upload/import is service-owned by <code>CareerProfileService</code>: customer UI uses <code>/customer/career/resumes/import</code> and same-origin parse/import endpoints; clients parse text or markdown through <code>ParseResumeText</code>, then persist reviewed drafts through <code>ImportResumeDraft</code> or focused batch CareerProfile RPCs.</li>
         <li>Career market and customer workflow KPIs come from service-owned aggregate/read-model APIs, not app-side broad count queries.</li>
         <li>ATS crawlers import universal jobs through <code>ImportATSJobs</code> with an agent token; they do not write directly to Postgres or Typesense.</li>
         <li>Resume view/download includes profile skills and attached employment records, keeps profile content first, and avoids pipe separators in export text.</li>

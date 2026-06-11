@@ -44,6 +44,7 @@ Validated ownership:
   - `/customer/career`
   - `/customer/career/profiles`
   - `/customer/career/resumes`
+  - `/customer/career/resumes/import`
   - `/customer/career/employment`
   - `/customer/career/jobs`
   - `/customer/career/cart`
@@ -56,6 +57,7 @@ Customer Career rules:
 - Career navigation should consistently show Overview, Skill Profiles, Resumes, Employment Records, Jobs, Job Cart, and Applications, with hierarchical breadcrumbs and a back action on every page.
 - Customer Career entity pages should use separate routes for list/search, create, detail, and edit. Use `/customer/career/{entity}`, `/customer/career/{entity}/new`, `/customer/career/{entity}/{id}`, and `/customer/career/{entity}/{id}/edit` where practical.
 - Resume detail pages should show attached employment records and actions to attach/order/include/tailor existing reusable employment records. Users should not need to retype employment history for each resume.
+- Resume import belongs on a separate page at `/customer/career/resumes/import`. The browser may read text/markdown files locally, but must call same-origin customer UI endpoints for parsing and import. Users must review and explicitly confirm the parsed draft before creating profile, skills, employment records, and resume records.
 - Resume view/download UI should include profile skills and attached employment records through same-origin routes. Do not display raw PDF bytes in chat or browser text.
 - Customers can search and view open jobs.
 - Customer job search/list pages must call same-origin Ceerat API wrappers such as `/api/jobs/search`; frontend code must not call Typesense or external ATS providers directly.
