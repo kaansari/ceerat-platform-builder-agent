@@ -321,8 +321,8 @@ The current tools are intentionally small. Preserve their names unless there is 
 | `get_company` | Read | Get one career company by ID. | `career.JobService/GetCompany` |
 | `update_company` | Mutation | Update a global career company. | `career.JobService/UpdateCompany` |
 | `create_job` | Mutation | Create a global career job for an existing company. | `career.JobService/CreateJob` |
-| `search_jobs` | Read | Search global career jobs. Returns compact summaries only; defaults to 10 results and is capped at 20. | `career.JobService/SearchJobs` |
-| `get_job` | Read | Get one career job by ID. | `career.JobService/GetJob` |
+| `search_jobs` | Read | Search global career jobs. Returns compact summaries only, including posting date, source URL, and hidden internal `job_id` metadata; defaults to 10 results and is capped at 20. | `career.JobService/SearchJobs` |
+| `get_job` | Read | Get one career job by internal `job_id` returned by search. | `career.JobService/GetJob` |
 | `close_job` | Mutation | Close a career job. | `career.JobService/CloseJob` |
 | `download_resume` | Read | Prepare an authenticated same-origin PDF download link for a resume. | `career.CareerProfileService/DownloadResume` |
 | `get_career_market_metrics` | Read | Return service-owned aggregate Career market metrics. | `career.JobService/GetCareerMarketMetrics` |
@@ -349,8 +349,11 @@ Current input behavior:
 - `update_company` requires `company_id`; supplied fields are forwarded to the backend company update RPC.
 - `create_job` requires `company_id`, `title`, and `description`; status defaults to `open` and source defaults to `manual` when not provided.
 - `search_jobs` accepts optional keyword, company ID, location, remote type, employment type, status, source, and limit. Limit defaults to 10 and is capped at 20.
-- `search_jobs` must return compact summaries only: job id, title, company, location, work mode, employment type, source, and safe source/application URL. It must not return full job descriptions.
-- Use `get_job` for one selected `job_id` when the assistant needs full job details or description.
+- `search_jobs` must return compact summaries only: result number, internal job id/`job_id`, external job id when present, title, company, location, work mode, employment type, posting date, source, and safe source/application URL. It must not return full job descriptions.
+- Assistant-visible job lists must not display internal GUID/job_id values.
+- Assistant-visible job lists should include title, company, location, posting date when available, and a Markdown `More info` link to `source_url` when available.
+- For numbered job lists, the assistant must preserve the number-to-job_id mapping in a hidden HTML comment such as `<!-- ceerat_job_refs: [{"number":1,"job_id":"..."}] -->` so follow-up requests like "job 7" can resolve safely from thread history without showing ugly IDs to the customer.
+- Use `get_job` for one selected internal `job_id` when the assistant needs full job details or description. Never call `get_job` with a bullet number, title, source URL, or external ATS id.
 - `get_job` and `close_job` require `job_id`.
 - `download_resume` requires a real `resume_id` returned by an authorized list/get resume flow. It returns a same-origin download action/link, not raw PDF bytes in the chat transcript.
 - `get_career_market_metrics` takes no model-supplied customer or user id and returns aggregate market/customer-safe KPI data only.

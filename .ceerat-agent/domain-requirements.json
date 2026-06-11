@@ -66,7 +66,7 @@
         {
           "name": "ai_job_search_limits",
           "requirement": "AI search_jobs returns compact capped summaries and uses get_job for full detail.",
-          "implementation_hint": "Default AI job search to 10 results, cap at 20, and exclude full descriptions from search result payloads."
+          "implementation_hint": "Default AI job search to 10 results, cap at 20, exclude full descriptions from search result payloads, show posting date and More info source_url links when available, do not display internal GUID/job_id values, and preserve number-to-job_id mappings in hidden ceerat_job_refs metadata so follow-up details call get_job with the stable Ceerat id."
         }
       ]
     },

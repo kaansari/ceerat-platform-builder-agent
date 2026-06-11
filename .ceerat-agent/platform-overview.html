@@ -620,7 +620,7 @@
           <p>Tools include customer profile, skill profiles, resumes, resume PDF download, career metrics, job search, job cart, and own applications.</p>
         </div>
       </div>
-      <div class="rule good"><code>search_jobs</code> returns compact job summaries only. It defaults to 10 results, is capped at 20, and excludes full descriptions. Use <code>get_job</code> for one selected job when details are needed.</div>
+      <div class="rule good"><code>search_jobs</code> returns compact job summaries only. It defaults to 10 results, is capped at 20, and excludes full descriptions. Customer-visible lists show title, company, location, posting date when available, and a <code>More info</code> link to <code>source_url</code>; they must not show internal GUIDs. Preserve the number-to-<code>job_id</code> mapping in hidden <code>ceerat_job_refs</code> metadata and use <code>get_job</code> with that internal id only.</div>
       <div class="rule good">Persisted AI history stores only sanitized user and final assistant messages. System prompts, tool calls, raw tool results, JWTs, and request metadata must not be stored in thread history.</div>
       <div class="rule warning">The AI tool layer is not the security boundary. Tools execute with the user's Ceerat JWT, and backend services still enforce JWT, RBAC, ownership, and repository scoping.</div>
       <h3 style="margin-top: 18px;">Customer Chat Smoke Test</h3>
