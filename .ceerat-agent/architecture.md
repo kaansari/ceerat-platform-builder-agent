@@ -225,6 +225,88 @@ logs/agent-service.log
 
 Plans that add a process must include ports, env vars, log files, PID behavior, and start/stop integration.
 
+## Kubernetes Deployment Option
+
+Ceerat also supports a Kubernetes deployment path owned by `infra/k8s`. Builder plans may mention this as deployment/config impact when a backend service, app-facing API, database dependency, secret, or runtime port changes.
+
+Current Kubernetes shape:
+
+```text
+infra/k8s/
+  dockerfiles/
+    apps-repo.Dockerfile       # one image for apps-repo app and agent binaries
+    services-repo.Dockerfile   # one image for services-repo backend binaries
+  base/
+    namespaces.yaml
+    shared-config.yaml
+    ceerat-user-service/
+    ceerat-agent-service/
+    frontend-apps/
+    postgres/
+    typesense/
+    ingress/
+  overlays/
+    dev/
+    staging/
+    prod/
+```
+
+Local helper commands:
+
+```text
+infra/k8s-start.sh
+infra/k8s-start.sh --local
+infra/k8s-status.sh
+infra/k8s-stop.sh
+make k8-build
+make k8-deploy
+make k8-render
+make start-k8
+make status-k8
+make stop-k8
+```
+
+Deployment image rule:
+
+- `ceerat-apps-repo` contains app and agent binaries from `apps-repo`, including `ceerat-web-ui`, `ceerat-admin-ui`, `ceerat-customer-ui`, and `ceerat-agent-service`.
+- `ceerat-services-repo` contains backend service binaries from `services-repo`, currently `ceerat-user-service`.
+- `atscrawler` is intentionally not part of the Kubernetes app image.
+- PostgreSQL uses the official `postgres:16-alpine` image as an in-cluster StatefulSet.
+- Typesense is optional derived search infrastructure. Postgres remains the source of truth.
+
+Runtime boundaries:
+
+- Browser-facing apps run in the `ceerat-frontend` namespace.
+- Backend services run in the `ceerat-backend` namespace.
+- Data services run in the `ceerat-data` namespace.
+- Apps and agents still call backend APIs; they must not write directly to Postgres or Typesense.
+- `ceerat-user-service` reaches Postgres through `ceerat-db-config` and `ceerat-db-credentials`.
+- Kubernetes manifests are not driven by `infra/.env`; K8s config lives in ConfigMaps and Secrets under `infra/k8s/base`.
+
+Local development:
+
+- `./k8s-start.sh --local` starts local browser port-forwards after deployments are ready.
+- UI services are ClusterIP services; local browser access should use port-forwarding.
+- K8s Postgres is also ClusterIP; database tools should connect through a port-forward such as `kubectl -n ceerat-data port-forward svc/postgres 55434:5432`.
+- Local visibility should use `k9s`, `infra/k8s-status.sh`, `infra/k8s-logs.sh`, `kubectl logs`, and `kubectl get events`.
+- Do not treat ingress, public DNS, or HTTPS as the default local debugging path.
+
+Production ingress:
+
+- Browser-facing production traffic should enter through an ingress controller or cloud load balancer, then route to `ceerat-frontend` services.
+- Production hostnames should be real DNS names, for example `app.ceerat.com`, `customer.ceerat.com`, and `admin.ceerat.com`.
+- Production ingress must use HTTPS certificates managed by the platform's normal certificate process.
+- The ingress class is environment-specific. Traefik is suitable for K3s/Traefik clusters; Nginx ingress is a common fallback; cloud-managed ingress may use a provider-specific class.
+- Backend and data services should remain internal by default: `postgres`, `typesense`, `ceerat-user-service`, and `ceerat-agent-service` are not public ingress targets unless a later security-reviewed architecture explicitly requires it.
+
+Builder guidance:
+
+- Service changes that add ports, env vars, secrets, database dependencies, health checks, or new service processes must include Kubernetes manifest impact in `integration_impact`.
+- App-facing route, hostname, TLS, or ingress-controller changes are production deployment impact and should be described separately from local port-forward testing.
+- Prefer HTTP or TCP probes unless the service explicitly implements the Kubernetes gRPC health protocol.
+- Do not propose direct SQL access from apps, agents, crawlers, or UI containers as a Kubernetes shortcut.
+- Keep Kubernetes docs in `infra/README.md` aligned with any durable deployment behavior.
+
 ## BI and System Intelligence Direction
 
 Do not build business intelligence on raw application logs. Logs are for debugging. Business intelligence should use structured events in a separate BI/analytics database.
