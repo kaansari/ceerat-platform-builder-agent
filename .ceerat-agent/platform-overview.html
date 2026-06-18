@@ -397,6 +397,7 @@
           <span class="tag">gRPC contracts</span>
           <span class="tag">JWT/RBAC</span>
           <span class="tag">Customer ownership</span>
+          <span class="tag">Career calendar</span>
           <span class="tag">AI through APIs</span>
           <span class="tag">Typesense behind services</span>
           <span class="tag">Separate BI store</span>
@@ -411,7 +412,7 @@
           <a href="#security">4. Security</a>
           <a href="#apps">5. Apps and UI</a>
           <a href="#ai">6. AI Tools</a>
-          <a href="#career-search">7. Career Search</a>
+          <a href="#career-search">7. Career + Calendar</a>
           <a href="#builder">8. Builder Workflow</a>
           <a href="#sources">9. Source Docs</a>
         </div>
@@ -499,7 +500,7 @@
             <li>Customer profiles and customer ownership flows.</li>
             <li>Service catalog, product catalog, and carts.</li>
             <li>Orders and order service lines.</li>
-            <li>Career companies, jobs, skill profiles, resumes, reusable employment records, job carts, metrics, and applications.</li>
+            <li>Career companies, jobs, skill profiles, resumes, reusable employment records, job carts, metrics, applications, and customer calendar events.</li>
             <li>RBAC roles, permissions, cache, and admin hooks.</li>
           </ul>
         </div>
@@ -512,11 +513,12 @@
         <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
         <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, reusable employment records, PDF downloads, and customer Career metrics.</p></div>
         <div class="mini"><code>career.JobService</code><p>Global companies/jobs, ATS import, job search, market metrics, and duplicate company validation.</p></div>
-        <div class="mini"><code>career.JobCartService</code><p>Customer job cart.</p></div>
-        <div class="mini"><code>career.JobApplicationService</code><p>Applications and review workflow.</p></div>
+        <div class="mini"><code>career.JobCartService</code><p>Customer saved-job cart with per-job resume selection.</p></div>
+        <div class="mini"><code>career.JobApplicationService</code><p>Resume-driven applications, provider discovery/submission, review workflow, and successful cart clearing.</p></div>
+        <div class="mini"><code>calendar.CalendarService</code><p>Customer-owned career calendar events and job/application follow-ups.</p></div>
         <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. Calendar belongs to <code>proto/calendar</code> as <code>calendar.CalendarService</code> and is implemented inside <code>ceerat-user-service</code> for customer-owned events and follow-ups. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">
@@ -548,9 +550,11 @@
       <h3 style="margin-top: 18px;">Critical Rules</h3>
       <ul>
         <li>Public methods must be rare: login, registration, token validation, and health checks.</li>
-        <li>Customer-owned Career data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
+        <li>Customer-owned Career and calendar data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
         <li>Employment attachment flows verify ownership of both the resume and the reusable employment record.</li>
         <li>Resume update/delete/download flows fetch by authenticated customer id plus resume id; exports include profile skills and attached employment records.</li>
+        <li>Customer job application submission is resume-driven. The service validates resume ownership and derives any internal profile linkage from the selected resume.</li>
+        <li>Calendar event list/create/update/delete methods are protected customer self-service operations; they are not public browser endpoints.</li>
         <li>Job search requests from customer surfaces are forced to open jobs; do not trust browser-supplied status for customer search.</li>
         <li>Market/customer Career metrics are protected service-owned aggregates; apps must not compute broad counts from paginated search or direct database access.</li>
         <li>Typesense API keys stay server-side in <code>ceerat-user-service</code>; frontend and AI tools must never call Typesense directly.</li>
@@ -591,6 +595,7 @@
           <div class="box"><strong>Threads</strong><span>Uses shared browser path <code>/api/agent/threads</code> -> <code>/customer/threads</code>.</span></div>
           <div class="box"><strong>Career</strong><span>Uses <code>/api/customer/career/*</code>.</span></div>
           <div class="box"><strong>Jobs</strong><span><code>/customer/career/jobs</code> lists/searches; <code>/customer/career/jobs/{id}</code> shows details.</span></div>
+          <div class="box"><strong>Calendar</strong><span><code>/customer/career/calendar</code> uses same-origin calendar APIs backed by <code>calendar.CalendarService</code>.</span></div>
           <div class="box"><strong>Resume Import</strong><span><code>/customer/career/resumes/import</code> parses text/markdown, reviews the draft, then imports through CareerProfile APIs.</span></div>
         </div>
       </div>
@@ -636,7 +641,7 @@
     </section>
 
     <section id="career-search" class="panel">
-      <p class="eyebrow">Career Search and Recent Updates</p>
+      <p class="eyebrow">Career Search, Calendar, and Recent Updates</p>
       <h2>Job Search Uses a Service-Owned Typesense Integration</h2>
       <div class="grid two">
         <div>
@@ -671,10 +676,13 @@
       <div class="rule">Indexed job dimensions include company, location, locations, country, remote, hybrid, onsite, employment type, department, seniority, skills, source, and status. Negative boolean work-mode buckets such as false remote/hybrid/onsite values should be hidden from customer-facing facets.</div>
       <h3 style="margin-top: 18px;">Other Recent Career Changes</h3>
       <ul>
-        <li>Customer Career home is a simple navigation hub with cards for jobs, resumes, skill profiles, job cart, and applications.</li>
+        <li>Customer Career home is a simple navigation hub with cards for jobs, calendar, resumes, skill profiles, job cart, and applications.</li>
         <li>Career pages follow separate list, create, detail, and edit routes with consistent navigation, breadcrumb, and back actions.</li>
         <li>Reusable employment records are customer-owned Career records. Resumes attach them through join records instead of duplicating employment history per resume.</li>
         <li>Resume text upload/import is service-owned by <code>CareerProfileService</code>: customer UI uses <code>/customer/career/resumes/import</code> and same-origin parse/import endpoints; clients parse text or markdown through <code>ParseResumeText</code>, then persist reviewed drafts through <code>ImportResumeDraft</code> or focused batch CareerProfile RPCs.</li>
+        <li>Job cart and application submission are resume-driven at the customer surface. Saved cart items keep a selected resume, applications derive internal profile linkage from that resume, and <code>ApplyToCartJobs</code> clears the cart only after every application succeeds.</li>
+        <li>Customer application lists link each job to its detail page. Follow-up calendar actions create event titles that include the job title and company name.</li>
+        <li>Customer calendar events are service-owned by <code>calendar.CalendarService</code>; the customer UI calendar page calls same-origin APIs that forward to the calendar gRPC service.</li>
         <li>Career market and customer workflow KPIs come from service-owned aggregate/read-model APIs, not app-side broad count queries.</li>
         <li>ATS crawlers import universal jobs through <code>ImportATSJobs</code> with an agent token; they do not write directly to Postgres or Typesense.</li>
         <li>Resume view/download includes profile skills and attached employment records, keeps profile content first, and avoids pipe separators in export text.</li>
