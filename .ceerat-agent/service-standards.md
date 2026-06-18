@@ -79,12 +79,12 @@ External provider actions, such as ATS job application submission, must be split
 For provider-backed customer mutations:
 
 - Add a read/discovery RPC that returns provider metadata, required fields, supported questions, and manual-application status without submitting.
-- Add a separate submit RPC only when the platform can validate the authenticated customer, target record, selected resume/profile, and explicit confirmation.
+- Add a separate submit RPC only when the platform can validate the authenticated customer, target record, selected resume, and explicit confirmation. Derive any internal skill profile from the selected resume rather than trusting a browser/model supplied profile id.
 - Require `confirmed=true` for submit RPCs that perform external side effects.
 - Derive `customer_id` from the authenticated JWT by looking up `customers.user_id`; do not trust browser/model-supplied customer ids.
 - Persist sanitized provider status and request/response summaries for audit, but do not store raw provider payloads, resume binary data, tokens, or secrets.
 - Return manual/failure status when provider fields are unsupported instead of guessing answers or weakening validation.
-- Expose AI submit tools only behind a prompt rule that first calls discovery, collects required answers, summarizes the target job/resume/profile, and asks for explicit confirmation.
+- Expose AI submit tools only behind a prompt rule that first calls discovery, collects required answers, summarizes the target job, selected resume, and destination, then asks for explicit confirmation.
 
 ## Metrics Read Model Standard
 
@@ -241,6 +241,7 @@ Current service API areas in `ceerat-user-service`:
 | Service Manager | `proto/service` | Service catalog, product catalog, customer carts, and customer-service assignments. |
 | Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
 | Career | `proto/career` | Companies, jobs, skill profiles, resumes, job carts, and job applications. |
+| Calendar | `proto/calendar` | Customer-owned career calendar events, reminders, and job/application follow-ups. |
 | AI Threads | `proto/ai` | Persisted sanitized AI chat thread history for agent and customer profiles. |
 
 The service default gRPC address is:
@@ -682,6 +683,16 @@ career.JobApplicationService/GetApplication
 career.JobApplicationService/UpdateApplicationStatus
 ```
 
+Career calendar methods are owned by `proto/calendar` inside `ceerat-user-service`:
+
+```text
+calendar.CalendarService/ListMyCalendarEvents
+calendar.CalendarService/GetMyCalendarEvent
+calendar.CalendarService/CreateCalendarEvent
+calendar.CalendarService/UpdateCalendarEvent
+calendar.CalendarService/DeleteCalendarEvent
+```
+
 Career ownership and security rules:
 
 - Companies and jobs are global operational records for agent/admin workflows.
@@ -700,7 +711,9 @@ Career ownership and security rules:
 - Employment records are reusable customer-owned work-history records, not skills and not embedded resume-only fields. Resumes attach them through join records that can carry sort order, include/exclude, tailored title, and tailored summary. Attach/detach/update flows must verify ownership of both the resume and the employment record.
 - Resume create/list/update/delete/download are CareerProfile self-service capabilities. Fetch the resume by authenticated customer id and resume id before mutation or rendering PDF bytes; do not create a generic download service or trust a supplied customer id. Delete/archive behavior must handle dependent applications safely and should avoid losing historical application snapshots.
 - Resume PDF export should include the resume/profile content, profile skills, and attached employment records in a readable full-page layout. Do not put raw pipe separators into export text.
-- External ATS application submission is owned by `career.JobApplicationService`: discover provider requirements first, require explicit customer confirmation before submission, validate selected resume/profile ownership, never invent answers to required provider questions, and fall back with `manual_application_required` plus application URL when provider submission is unsupported.
+- Job cart apply flows are resume-driven at the customer surface. Cart items carry selected resumes and notes; `ApplyToCartJobs` uses each cart item's resume and clears the cart only after every application succeeds.
+- External ATS application submission is owned by `career.JobApplicationService`: discover provider requirements first, require explicit customer confirmation before submission, validate selected resume ownership, derive the internal skill profile from the resume, never invent answers to required provider questions, and fall back with `manual_application_required` plus application URL when provider submission is unsupported.
+- Customer calendar events are owned by `calendar.CalendarService`. Calendar list/get/create/update/delete calls must derive customer identity from JWT, scope records by authenticated customer id, and remain protected customer RBAC methods rather than public methods.
 - Agent/admin job and application review workflows use protected Career RPCs. Apps and AI tools must not write directly to the database.
 - Company keyword search should support practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL.
 
@@ -716,6 +729,7 @@ Career smoke tests should cover:
 - Agent/admin create/list/update company and create/search/update/close/reopen job.
 - Job search filters for keyword, company, status, source, location, employment type, remote type, department, seniority, skills, country, facets, and pagination.
 - External application discovery, explicit confirmation rejection, sanitized provider audit records, and manual fallback for unsupported Greenhouse requirements.
+- Calendar event list/get/create/update/delete ownership, RBAC denial for wrong roles, and customer scoping by authenticated JWT.
 - Application list/update-status flows for agent/admin.
 - AI tool permission behavior when Career tools are involved.
 

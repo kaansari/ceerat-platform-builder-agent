@@ -105,11 +105,12 @@ Examples:
 - Customer can only read/update its own user profile.
 - Customer cannot list all customers.
 - Customer profile access checks `customers.user_id`.
-- Customer Career profile, resume, job cart, and application access resolves the authenticated user through `customers.user_id`; do not trust customer-supplied `customer_id`.
+- Customer Career profile, resume, job cart, application, and calendar event access resolves the authenticated user through `customers.user_id`; do not trust customer-supplied `customer_id`.
 - Customer employment records and resume-employment attachments resolve ownership through authenticated `customers.user_id`. Attachment mutations must verify ownership of both the resume and the employment record.
 - Customer Career workflow metrics resolve customer identity from authenticated context. Global market metrics may be customer-readable only as sanitized aggregate counts/buckets with no private customer or application details.
 - Customer resume downloads must resolve `customer_id` from authenticated context and fetch by `customer_id` plus `resume_id` before returning PDF bytes.
-- Customer external ATS application submissions must resolve `customer_id` from authenticated context, require explicit confirmation, validate resume/profile ownership, and store only sanitized provider status/audit summaries.
+- Customer external ATS application submissions must resolve `customer_id` from authenticated context, require explicit confirmation, validate resume ownership, derive any internal skill profile from that resume, and store only sanitized provider status/audit summaries.
+- Customer career calendar methods are protected self-service methods under `calendar.CalendarService`. They belong in `KnownGRPCMethods` and customer default role permissions, but never in `DefaultPublicMethods`.
 - Customer service assignments are filtered or denied by owner.
 - Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
 - Order reads and writes are scoped by authenticated user id.
@@ -152,6 +153,71 @@ If a customer AI tool reports permission denied for a customer-owned action, che
 2. The backend method must remain protected by JWT, RBAC, and ownership checks.
 
 Do not "fix" customer AI permission errors by making methods public, widening customer RBAC beyond self-service, or allowing customer tools to accept arbitrary `customer_id`.
+
+## Current Customer Career RBAC Methods
+
+Customer Career self-service methods include these protected gRPC methods:
+
+```text
+/career.CareerProfileService/CreateSkillProfile
+/career.CareerProfileService/ListMySkillProfiles
+/career.CareerProfileService/AddSkillToProfile
+/career.CareerProfileService/UpdateSkillInProfile
+/career.CareerProfileService/BatchAddSkillsToProfile
+/career.CareerProfileService/CreateResume
+/career.CareerProfileService/ListMyResumes
+/career.CareerProfileService/UpdateResume
+/career.CareerProfileService/DeleteResume
+/career.CareerProfileService/DownloadResume
+/career.CareerProfileService/ParseResumeText
+/career.CareerProfileService/ImportResumeDraft
+/career.CareerProfileService/CreateEmploymentRecord
+/career.CareerProfileService/BatchCreateEmploymentRecords
+/career.CareerProfileService/ListMyEmploymentRecords
+/career.CareerProfileService/GetEmploymentRecord
+/career.CareerProfileService/UpdateEmploymentRecord
+/career.CareerProfileService/ArchiveEmploymentRecord
+/career.CareerProfileService/AttachEmploymentRecordToResume
+/career.CareerProfileService/BatchAttachEmploymentRecordsToResume
+/career.CareerProfileService/DetachEmploymentRecordFromResume
+/career.CareerProfileService/UpdateResumeEmploymentRecord
+/career.CareerProfileService/ListResumeEmploymentRecords
+/career.CareerProfileService/GetMyCareerMetrics
+/career.JobService/GetJob
+/career.JobService/SearchJobs
+/career.JobService/GetCareerMarketMetrics
+/career.JobCartService/GetJobCart
+/career.JobCartService/AddJobToCart
+/career.JobCartService/UpdateCartItemProfile
+/career.JobCartService/RemoveJobFromCart
+/career.JobCartService/ClearJobCart
+/career.JobApplicationService/ApplyToJob
+/career.JobApplicationService/DiscoverJobApplication
+/career.JobApplicationService/SubmitJobApplication
+/career.JobApplicationService/ApplyToCartJobs
+/career.JobApplicationService/ListMyApplications
+/career.JobApplicationService/GetMyApplication
+/calendar.CalendarService/ListMyCalendarEvents
+/calendar.CalendarService/GetMyCalendarEvent
+/calendar.CalendarService/CreateCalendarEvent
+/calendar.CalendarService/UpdateCalendarEvent
+/calendar.CalendarService/DeleteCalendarEvent
+```
+
+Customer Career RBAC must not include agent/admin operational mutations:
+
+```text
+/career.JobService/CreateCompany
+/career.JobService/UpdateCompany
+/career.JobService/CreateJob
+/career.JobService/UpdateJob
+/career.JobService/CloseJob
+/career.JobService/ReopenJob
+/career.JobService/ImportATSJobs
+/career.JobApplicationService/ListApplications
+/career.JobApplicationService/GetApplication
+/career.JobApplicationService/UpdateApplicationStatus
+```
 
 ## Admin HTTP Rules
 

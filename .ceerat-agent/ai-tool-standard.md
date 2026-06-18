@@ -577,7 +577,7 @@ Tools execute with the user's Ceerat JWT. Backend services still enforce JWT val
 
 Customer resume download tools must call the protected `career.CareerProfileService/DownloadResume` backend RPC. The tool may pass a resume id and requested PDF format, but it must not accept or invent `customer_id`; the backend derives customer ownership from the authenticated JWT.
 
-Customer external ATS submission tools must call `discover_job_application` before `submit_job_application`. The model must collect required answers, summarize the target job, selected resume/profile, and external destination, then ask for explicit confirmation. `submit_job_application` must not accept or invent `customer_id`; the backend derives ownership from the authenticated JWT and requires `confirmed=true`.
+Customer external ATS submission tools must call `discover_job_application` before `submit_job_application`. The model must collect required answers, summarize the target job, selected resume, and external destination, then ask for explicit confirmation. `submit_job_application` must not accept or invent `customer_id` or require a customer-selected skill profile; the backend derives ownership from the authenticated JWT, derives internal profile context from the resume, and requires `confirmed=true`.
 
 The AI tool layer improves the interface; it is not the security boundary.
 

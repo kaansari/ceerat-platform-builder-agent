@@ -120,7 +120,7 @@ It owns:
 - Customer carts and cart items for services/products.
 - Customer-service assignments.
 - Orders and order service lines.
-- Career companies, jobs, skill profiles, resumes, job carts, and job applications.
+- Career companies, jobs, skill profiles, resumes, job carts, job applications, and customer calendar events.
 - AI chat thread history for agent and customer profiles.
 - RBAC roles and gRPC method permissions.
 - Admin HTTP management API.
@@ -138,6 +138,7 @@ career.CareerProfileService
 career.JobService
 career.JobCartService
 career.JobApplicationService
+calendar.CalendarService
 ai.AIThreadService
 ```
 
@@ -158,6 +159,9 @@ Validated ownership rule:
 - Career job search belongs behind `career.JobService/SearchJobs`. `ceerat-user-service` may use Typesense for indexed search and facets, but Typesense remains a service-owned implementation detail with Postgres as source of truth and database fallback. Customer UI and AI tools consume search through Ceerat API/gRPC boundaries only.
 - Career market/customer metrics are service-owned read models exposed through Career RPCs. Apps and AI tools should not compute broad global counts from paginated job search or direct database access.
 - External ATS application flows belong to `career.JobApplicationService`: discover provider requirements, require explicit customer confirmation, submit only supported forms server-side, and return manual fallback URLs when provider requirements cannot be safely automated.
+- Career job applications are resume-driven at the customer surface. Job cart items and application submit requests should carry the selected resume, not a separate customer-selected skill profile. The service may persist `skill_profile_id` internally by deriving it from the resume's owning profile for historical consistency.
+- Applying to all jobs in a job cart must clear the job cart only after every application succeeds. Partial failures must leave the cart intact so the customer can correct missing resumes or provider issues.
+- Customer calendar events belong to `calendar.CalendarService` in `proto/calendar` and are implemented by `ceerat-user-service/calendars`. Calendar events are customer-owned, JWT-scoped records for interviews, follow-ups, deadlines, assessments, offers, and custom career reminders. Apps may prefill `job_id`, `job_title`, `company`, and related entity fields, but persistence and ownership checks remain service-owned.
 - AI career tools execute through `ceerat-agent-service` platform gRPC clients. They must resolve company/job/application IDs using list/get/search tools and must not invent IDs. The agent may answer first-party account questions from sanitized `ValidateToken.user` session context.
 - AI chat thread history belongs to `ceerat-user-service` under `proto/ai` as `ai.AIThreadService`.
 - Agent and customer chat histories are scoped by authenticated user id, profile, and external thread id: `agent:<user_id>:<session_id>` and `customer:<user_id>:<session_id>` conceptually, with the backend enforcing JWT ownership.
