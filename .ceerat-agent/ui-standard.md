@@ -27,7 +27,7 @@ For app integration requests, first classify whether the backend capability alre
 
 | UI | Purpose | Backend dependency |
 | --- | --- | --- |
-| Admin UI | Admin users, roles, permissions, RBAC cache, operational controls | User service admin HTTP API |
+| Admin UI | Admin users, roles, permissions, RBAC cache, operational controls | Same-origin admin app routes backed by `admin.AdminService` gRPC |
 | Web UI | Authenticated operational app, dashboard, orders, agent Career pages, AI Agent panel, full-page `/chatgpt-client/` | User service gRPC, agent service HTTP |
 | Customer UI | Customer registration, profile/orders, customer Career self-service, and customer AI chat workflows | User service gRPC, agent service HTTP |
 
@@ -35,7 +35,7 @@ Validated ownership:
 
 - Career administration belongs in the agent-facing `ceerat-web-ui`, not in the admin/security UI.
 - Customer Career self-service belongs in `ceerat-customer-ui`, not in admin UI or agent-facing `ceerat-web-ui`.
-- Admin UI remains focused on users, roles, RBAC, security, cache refresh, and system operations.
+- Admin UI remains focused on users, roles, RBAC, security, cache refresh, and system operations. Its app server may expose same-origin HTTP routes for the browser, but backend operations go through `admin.AdminService` gRPC.
 - Agent Career pages use same-origin web endpoints under `/api/agent/career/*`; the web app forwards the session JWT to `career.JobService` and `career.JobApplicationService`.
 - Customer Career pages use same-origin customer endpoints under `/api/customer/career/*`; the customer app forwards the session JWT to `career.CareerProfileService`, `career.JobService`, `career.JobCartService`, and `career.JobApplicationService`.
 - `ceerat-web-ui` is an active-agent portal. Do not allow customer/admin sessions to use agent-only pages or agent chat routes.
@@ -78,7 +78,7 @@ Preferred flow:
 ```text
 Browser
   -> app HTTP endpoint
-  -> backend gRPC/admin HTTP API
+  -> backend gRPC API
   -> service handler
   -> repository/database
 ```

@@ -55,7 +55,7 @@ Frontend apps, admin apps, customer apps, and AI agents must not write directly 
 - Ownership checks.
 - Database models and repositories.
 - Migrations and seed data.
-- Admin hooks for operational data.
+- Admin/operations gRPC hooks for operational data.
 - Structured logging.
 - Tests for security, ownership, and persistence behavior.
 
@@ -108,7 +108,7 @@ new-service/
   main.go
   logging.go
   rbac.go
-  admin_http.go          optional, only when service owns admin operations
+  admin/                optional package, only when service owns admin operations
   seed.go                optional, only when seed data is required
   internal/
     models/
@@ -188,7 +188,7 @@ Service startup should be predictable and boring:
 8. Load RBAC cache when the service owns RBAC data.
 9. Build gRPC interceptors.
 10. Register gRPC services.
-11. Start admin HTTP API if the service owns admin operations.
+11. Register admin/operations gRPC services when the service owns admin operations.
 12. Enable gRPC reflection for local inspection.
 13. Serve.
 
@@ -222,7 +222,6 @@ Optional service variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `<SERVICE>_ADMIN_PORT` | Admin HTTP port. |
 | `RBAC_CACHE_REFRESH_INTERVAL` | Periodic permission cache refresh. |
 | `<SERVICE>_SEED_*` | Idempotent seed data configuration. |
 
@@ -230,7 +229,7 @@ Production rule: never rely on local default secrets outside local development.
 
 ## gRPC API Standard
 
-Business APIs should be gRPC. Admin/operations APIs may be admin-only HTTP when browser admin tools need them.
+Business APIs and admin/operations APIs should be gRPC. Browser admin tools should use same-origin app routes that proxy to protected backend gRPC clients; backend services should not add a separate admin HTTP server for ordinary management operations.
 
 Current service API areas in `ceerat-user-service`:
 
@@ -243,6 +242,7 @@ Current service API areas in `ceerat-user-service`:
 | Career | `proto/career` | Companies, jobs, skill profiles, resumes, job carts, and job applications. |
 | Calendar | `proto/calendar` | Customer-owned career calendar events, reminders, and job/application follow-ups. |
 | AI Threads | `proto/ai` | Persisted sanitized AI chat thread history for agent and customer profiles. |
+| Admin | `proto/admin` | Admin users, roles, permissions, RBAC cache refresh, and operational rebuilds. |
 
 The service default gRPC address is:
 
@@ -308,34 +308,42 @@ App/agent integration rules:
 - `ceerat-agent-service` appends the user message and final assistant response only after a completed turn.
 - Browser apps expose thread list/history through same-origin proxy routes; browser assets must not call gRPC or the database directly.
 
-## Admin HTTP Standard
+## Admin Operations Standard
 
-Only add admin HTTP endpoints when the service owns operational data that admins must manage.
+Admin and operational management belongs behind protected gRPC services, currently `admin.AdminService` in `proto/admin`.
 
-Current user-service admin API default:
-
-```text
-http://localhost:8081
-```
-
-Admin HTTP routes must:
-
-1. Read token from `Authorization: Bearer <token>` or `X-Auth-Token`.
-2. Validate token.
-3. Load the current user from the database or identity source.
-4. Require `role == "admin"`.
-5. Apply the operation.
-6. Refresh affected in-memory caches before returning success.
-7. Return JSON with a clear status or an `error` field.
-
-Admin HTTP should set basic security headers:
+Current user-service admin methods include:
 
 ```text
-X-Content-Type-Options: nosniff
-Referrer-Policy: same-origin
+admin.AdminService/GetCurrentAdmin
+admin.AdminService/ListUsers
+admin.AdminService/CreateUser
+admin.AdminService/UpdateUser
+admin.AdminService/ResetUserPassword
+admin.AdminService/ChangeUserRole
+admin.AdminService/ChangeUserStatus
+admin.AdminService/ListRoles
+admin.AdminService/CreateRole
+admin.AdminService/UpdateRole
+admin.AdminService/DeleteRole
+admin.AdminService/ListRolePermissions
+admin.AdminService/CreateRolePermission
+admin.AdminService/DeleteRolePermission
+admin.AdminService/ListKnownGRPCMethods
+admin.AdminService/RefreshRBACCache
+admin.AdminService/RebuildJobSearchIndex
 ```
 
-Use admin HTTP for operational management, not ordinary customer, app, or agent workflows.
+Admin gRPC methods must:
+
+1. Run through the normal JWT, RBAC, and logging interceptors.
+2. Require an active admin user in the handler before applying sensitive changes.
+3. Re-load current user role/status from the database before allowing sensitive changes.
+4. Refresh affected in-memory caches before returning success.
+5. Return safe gRPC errors and sanitized response messages.
+6. Never expose passwords, password hashes, tokens, or auth headers.
+
+Browser admin surfaces may keep same-origin HTTP routes inside app servers, but those routes should call `admin.AdminService` clients. Do not add a separate backend admin HTTP listener unless a future operational requirement explicitly needs one and explains why gRPC is insufficient.
 
 Current important admin areas:
 
@@ -344,7 +352,8 @@ Current important admin areas:
 - Role list/create/update/delete.
 - Role permission list/create/delete.
 - Known gRPC method list.
-- Manual RBAC cache refresh.
+- Manual RBAC cache refresh via `admin.AdminService/RefreshRBACCache`.
+- Job search index rebuild via `admin.AdminService/RebuildJobSearchIndex`.
 
 ## Security Standard
 
@@ -743,12 +752,14 @@ grpcurl -plaintext \
   auth.Auth/GetAll
 ```
 
-Admin HTTP testing:
+Admin gRPC testing:
 
 ```bash
-curl -s \
+grpcurl -plaintext \
   -H "Authorization: Bearer ${TOKEN}" \
-  http://localhost:8081/api/admin/me
+  -d '{}' \
+  localhost:50051 \
+  admin.AdminService/GetCurrentAdmin
 ```
 
 Useful failure tests:
@@ -789,7 +800,7 @@ Every new service should include:
 
 - `README.md` for local running and configuration.
 - `docs/architecture.md` for the service/platform view.
-- `docs/api.md` for gRPC and admin HTTP APIs.
+- `docs/api.md` for gRPC business and admin/operations APIs.
 - `docs/grpc-security.md` for JWT, RBAC, public methods, and ownership rules.
 - `docs/logging.md` for structured log fields and redaction.
 - `docs/api-testing.md` for `grpcurl`, `curl`, auth, RBAC, and failure tests.
@@ -810,10 +821,10 @@ When asked to create a new service, the builder should follow this recipe:
 7. Create repositories with authenticated ownership scoping.
 8. Add migrations/models/indexes/constraints.
 9. Add idempotent seed data if required.
-10. Wire startup with logger, config, DB, seed, repositories, validators, RBAC, interceptors, gRPC registration, admin HTTP if needed, reflection, and serve.
+10. Wire startup with logger, config, DB, seed, repositories, validators, RBAC, interceptors, gRPC service registration, reflection, and serve.
 11. Use interceptor order `JWT -> RBAC -> Logging -> Handler`.
 12. Use structured `slog` logs and redact secrets.
-13. Add admin HTTP only for admin-owned operational management.
+13. Add admin/operations gRPC methods only for service-owned operational management.
 14. Add tests for auth, RBAC, ownership, repositories, transactions, logging redaction, admin hooks, and cache refresh.
 15. Add README and focused docs.
 

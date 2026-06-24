@@ -14,7 +14,7 @@ In scope:
 - Repositories and database access.
 - PostgreSQL OLTP tables, indexes, constraints, seed data, and migrations.
 - JWT, RBAC, public method allowlists, admin-only hooks, and ownership checks.
-- Admin HTTP endpoints owned by backend services.
+- Admin/operations gRPC methods owned by backend services.
 - Structured logging, business events, and BI/event handoff.
 - Infra/config/log impact for service processes.
 
@@ -64,7 +64,7 @@ Browser Apps
      v
 App servers / proxies
      |
-     | gRPC or admin HTTP
+     | gRPC
      v
 Backend services
      |
@@ -85,7 +85,7 @@ Backend services
 | --- | --- | --- |
 | `infra` | Local stack start/stop, env wiring, process logs, PIDs, database startup | Apps, services, database |
 | `contracts-repo/packages/ceerat-contracts` | Protobuf contracts, generated clients/servers, domain DTOs, mappers, shared security hooks | No app/service/db dependency |
-| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, career, RBAC, admin HTTP | Contracts, PostgreSQL |
+| `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, career, calendar, AI threads, RBAC, and admin/operations gRPC | Contracts, PostgreSQL |
 | PostgreSQL OLTP | Source of truth for transactional records | Owned by backend services |
 | Future BI database | Business events, rollups, AI insights, executive recommendations | Receives copied/evented data |
 
@@ -106,8 +106,7 @@ Existing app and AI callers are documented in inventories for compatibility chec
 `ceerat-user-service` is currently the core service. It exposes:
 
 ```text
-gRPC:       localhost:50051
-Admin HTTP: localhost:8081
+gRPC: localhost:50051
 ```
 
 It owns:
@@ -123,7 +122,7 @@ It owns:
 - Career companies, jobs, skill profiles, resumes, job carts, job applications, and customer calendar events.
 - AI chat thread history for agent and customer profiles.
 - RBAC roles and gRPC method permissions.
-- Admin HTTP management API.
+- Admin/operations management through `admin.AdminService` gRPC methods.
 - GORM entities and migrations.
 - Structured JSON logging.
 
@@ -140,6 +139,7 @@ career.JobCartService
 career.JobApplicationService
 calendar.CalendarService
 ai.AIThreadService
+admin.AdminService
 ```
 
 Validated ownership rule:

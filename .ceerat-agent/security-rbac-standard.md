@@ -219,25 +219,21 @@ Customer Career RBAC must not include agent/admin operational mutations:
 /career.JobApplicationService/UpdateApplicationStatus
 ```
 
-## Admin HTTP Rules
+## Admin Operations Rules
 
-Admin HTTP APIs must:
+Admin and operational APIs should be protected gRPC methods on `admin.AdminService`, not a separate backend admin HTTP server.
 
-1. Read `Authorization: Bearer <jwt>` or `X-Auth-Token`.
-2. Validate token.
-3. Load current user.
-4. Require `role == "admin"`.
-5. Apply operation.
-6. Refresh affected in-memory caches.
-7. Return JSON.
+Admin gRPC methods must:
 
-Admin APIs should set:
+1. Use the normal JWT, RBAC, and logging interceptors.
+2. Load the current user from the database or identity source.
+3. Require an active `role == "admin"` user before sensitive operations.
+4. Apply the operation through service-owned repositories.
+5. Refresh affected in-memory caches before returning success.
+6. Return sanitized protobuf responses or canonical gRPC errors.
 
-```text
-X-Content-Type-Options: nosniff
-Referrer-Policy: same-origin
-```
+Browser admin UIs may expose same-origin HTTP endpoints, but those app routes must forward to protected backend gRPC clients and must not bypass the service security boundary.
 
 ## Test Requirements
 
-Plans must include tests for missing token, invalid token, RBAC denied, RBAC allowed, ownership denied, ownership allowed, admin-only routes, and AI tool permission behavior when tools are involved.
+Plans must include tests for missing token, invalid token, RBAC denied, RBAC allowed, ownership denied, ownership allowed, admin-only gRPC methods, and AI tool permission behavior when tools are involved.

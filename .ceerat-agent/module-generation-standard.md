@@ -33,7 +33,7 @@ required_tests
 risks_questions
 ```
 
-Put service-owned admin HTTP hooks in `required_services`, database behavior in `required_database_migrations`, security behavior in `required_rbac_permissions`, logs/events in `required_logging_events`, and caller coordination in `integration_impact`.
+Put service-owned admin/operations gRPC hooks in `required_services`, database behavior in `required_database_migrations`, security behavior in `required_rbac_permissions`, logs/events in `required_logging_events`, and caller coordination in `integration_impact`.
 
 Do not include frontend implementation details in any field.
 
@@ -112,6 +112,7 @@ Use `ceerat-user-service` when the module is tightly coupled to:
 - Orders.
 - Career companies, jobs, skill profiles, resumes, job carts, and job applications.
 - RBAC/admin management.
+- Customer career calendar events.
 
 Propose a new backend service only when the domain has clear independent ownership, separate scaling/security needs, or its own persistence lifecycle.
 
@@ -119,7 +120,7 @@ If proposing a new service, include:
 
 - Repo/module path.
 - gRPC port.
-- Admin/internal HTTP port, if any.
+- Admin/operations gRPC surface, if any.
 - Database ownership.
 - Startup and log integration.
 - Contract changes.
@@ -216,7 +217,7 @@ new-service/
   main.go
   logging.go
   rbac.go
-  admin_http.go          optional
+  admin/                optional
   seed.go                optional
   internal/models/
   feature/
@@ -237,7 +238,7 @@ Startup pattern:
 8. Load RBAC cache or connect to RBAC owner.
 9. Build gRPC interceptors.
 10. Register gRPC services.
-11. Start admin HTTP API if owned.
+11. Register admin/operations gRPC services if owned.
 12. Enable gRPC reflection.
 13. Serve.
 

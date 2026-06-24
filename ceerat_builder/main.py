@@ -671,11 +671,11 @@ def _source_evidence(project_root: Path, owner: RecommendedOwner, related_contra
                 "grpcLoggingInterceptor",
                 "grpc.ChainUnaryInterceptor",
                 "startRBACRefresh",
-                "startAdminHTTPServer",
+                "adminpb.RegisterAdminServiceServer",
             ],
             finding=(
                 "When JWT auth is enabled, unary interceptors are chained as JWT, RBAC, then logging; "
-                "RBAC cache refresh and service admin HTTP hooks are started from main."
+                "RBAC cache refresh and admin/operations hooks are exposed through registered gRPC services."
             ),
         ))
 
@@ -973,7 +973,7 @@ def _service_pattern_payload() -> Dict[str, Any]:
         "kind": "service",
         "purpose": "Factual backend service implementation pattern for Codex before editing.",
         "standard_files": [
-            "main.go wires DB, migrations, seed hooks, repositories, gRPC registration, reflection, admin HTTP hooks.",
+            "main.go wires DB, migrations, seed hooks, repositories, gRPC registration, admin/operations gRPC hooks, and reflection.",
             "<domain>/handler.go implements generated gRPC server methods and auth/ownership checks.",
             "<domain>/repository.go owns DB queries, transactions, filters, and persistence mapping.",
             "<domain>/handler_test.go follows existing gRPC/bufconn or handler test patterns.",
@@ -1786,7 +1786,7 @@ def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
         "service": [
             {
                 "path": "services-repo/services/ceerat-user-service/docs/api.md",
-                "purpose": "Focused gRPC/admin HTTP API reference.",
+                "purpose": "Focused gRPC business and admin/operations API reference.",
             },
             {
                 "path": "services-repo/services/ceerat-user-service/docs/api-testing.md",

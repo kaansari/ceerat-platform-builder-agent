@@ -490,7 +490,7 @@
           <table>
             <tr><th>Interface</th><th>Local endpoint</th></tr>
             <tr><td>gRPC</td><td><code>localhost:50051</code></td></tr>
-            <tr><td>Admin HTTP</td><td><code>localhost:8081</code></td></tr>
+            <tr><td>Admin operations</td><td><code>admin.AdminService</code> on gRPC</td></tr>
           </table>
         </div>
         <div>
@@ -571,7 +571,7 @@
         <div class="lane-name">Admin UI<br><code>:3010</code></div>
         <div class="lane-body">
           <div class="box"><strong>Owns</strong><span>Users, roles, RBAC, cache refresh, operational controls.</span></div>
-          <div class="box"><strong>Depends on</strong><span>User service admin HTTP API.</span></div>
+          <div class="box"><strong>Depends on</strong><span>Same-origin app routes backed by <code>admin.AdminService</code> gRPC.</span></div>
           <div class="box"><strong>Does not own</strong><span>Career workspace or customer self-service.</span></div>
           <div class="box"><strong>Rule</strong><span>Admin role/system account protections stay strict.</span></div>
         </div>
@@ -653,7 +653,7 @@
             <tr><td>Container</td><td><code>ceerat-typesense</code></td></tr>
             <tr><td>URL</td><td><code>http://localhost:8108</code></td></tr>
             <tr><td>Collection</td><td><code>jobs</code></td></tr>
-            <tr><td>Rebuild API</td><td><code>POST /api/admin/jobs/search-index/rebuild</code></td></tr>
+            <tr><td>Rebuild API</td><td><code>admin.AdminService/RebuildJobSearchIndex</code></td></tr>
           </table>
         </div>
         <div>

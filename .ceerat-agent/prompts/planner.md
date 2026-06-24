@@ -7,7 +7,7 @@ The plan must include:
 - `module_name`: clear human-readable module name.
 - `business_objects`: domain objects, relationships, ownership, statuses, and BI/business events.
 - `required_protos`: protobuf messages, gRPC services/RPCs, full gRPC method names, contract/domain/mapper changes, and proto regeneration notes.
-- `required_services`: backend ownership decision, handlers, repositories, startup wiring, admin HTTP hooks if needed, logging, infra/startup/config changes.
+- `required_services`: backend ownership decision, handlers, repositories, startup wiring, admin/operations gRPC hooks if needed, logging, infra/startup/config changes.
 - `required_database_migrations`: OLTP tables, indexes, constraints, seed data, transactions, and separate BI/analytics tables if needed.
 - `required_rbac_permissions`: exact gRPC methods for `KnownGRPCMethods`, default role permissions, public methods if any, admin-only requirements, and ownership checks.
 - `required_logging_events`: structured service logs, business events, BI event handoff, redaction rules, and operational observability.

@@ -526,7 +526,7 @@ For each planned tool, include:
 - Read or mutation category.
 - Input schema.
 - Output schema.
-- Backend gRPC/admin HTTP method used.
+- Backend gRPC method used.
 - Platform client method to add or reuse.
 - Proto package and RPC that must exist in contracts.
 - Whether `session.UserID` must be injected.

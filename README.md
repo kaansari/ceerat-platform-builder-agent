@@ -17,7 +17,7 @@ The agent is intentionally scoped to backend service work:
 - backend service handlers and repositories
 - PostgreSQL OLTP database objects and migrations
 - JWT/RBAC/security and ownership checks
-- admin HTTP hooks owned by services
+- admin/operations gRPC methods owned by services
 - structured logging and business events
 - infra/config impact for service processes
 
