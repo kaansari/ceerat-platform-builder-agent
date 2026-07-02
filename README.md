@@ -126,7 +126,9 @@ ceerat-builder patterns repository --output json
 ceerat-builder patterns testing --output json
 ceerat-builder cookbook service --output json
 ceerat-builder requirements invoice --output json
+ceerat-builder requirements commerce --output json
 ceerat-builder evidence request "create invoice service" --output json
+ceerat-builder evidence request "tax shipping coupon checkout customer addresses" --output json
 ceerat-builder evidence model Product --output json
 ceerat-builder impact contract service.ServiceManager --add Product --output json
 ceerat-builder impact contract patient.patient --remove Patient --output json
@@ -181,10 +183,10 @@ ceerat-builder app-impact ceerat-web-ui --route "GET /products" --surface "produ
 ceerat-builder check apps --output json
 ```
 
-The app commands are intentionally simple foundations. They expose existing app
-routes, handlers, templates, static files, chat surfaces, AI tools, dependencies,
-and inventory update hints. They do not define final frontend architecture or UI
-design rules yet.
+The app commands expose existing routes, handlers, templates, static files, chat
+surfaces, AI tools, dependencies, and inventory update hints. Validated workflow
+rules are documented in `.ceerat-agent/ui-standard.md`; the commands still do not
+generate frontend designs or implementation code.
 
 Local packet output includes:
 

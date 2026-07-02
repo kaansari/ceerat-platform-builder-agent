@@ -166,6 +166,22 @@ Product belongs to the current service catalog boundary. Prefer extending `servi
 
 Cart is also validated as part of the current `service.ServiceManager` boundary because it is a customer-owned workflow over service catalog and product catalog items. Prefer extending this service for cart-style service/product selection behavior unless the inventory shows a new checkout/order owner.
 
+Checkout finalization and order pricing belong to `order.OrderManager`:
+
+```text
+/order.OrderManager/QuoteMyCartPricing
+/order.OrderManager/CheckoutMyCart
+/order.OrderManager/RepriceOrder
+/order.OrderManager/CreateOrderPricingRule
+/order.OrderManager/ListOrderPricingRules
+/order.OrderManager/UpdateOrderPricingRule
+/order.OrderManager/DeleteOrderPricingRule
+```
+
+Use this owner for tax, shipping, order-level coupons, price quotes, and order repricing. Do not create separate tax/shipping/coupon services. Catalog and cart-item discount ownership remains in `service.ServiceManager`; the order calculator consumes the resulting effective subtotal.
+
+Customer address ownership remains in `customer.CustomerService`. Shipping and billing addresses are explicit fields on the customer contract and are snapshotted onto orders. Tax uses shipping address only.
+
 Career is validated as a `proto/career` module inside `ceerat-user-service`, not a standalone service. It owns:
 
 ```text
@@ -271,6 +287,9 @@ Repository rules:
 - Apply visibility rules for catalog data, such as customer role seeing active products only.
 - For either/or relationships, such as a cart item referencing either a service or a product, use nullable foreign keys for the optional side. Do not store empty strings in unused FK columns.
 - Recalculate cart/order totals inside the same transaction that changes line items.
+- For checkout, require complete explicit shipping and billing addresses and snapshot both on the order.
+- Reject missing address snapshots and stale shipping method IDs; this new-system commerce model has no legacy fallback.
+- Keep quote, checkout, and repricing on one server-owned calculator using `subtotal - discount + shipping + tax`.
 - Do not return password/token fields.
 - Do not let apps or agents bypass service APIs.
 

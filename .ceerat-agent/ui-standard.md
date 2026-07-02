@@ -28,8 +28,8 @@ For app integration requests, first classify whether the backend capability alre
 | UI | Purpose | Backend dependency |
 | --- | --- | --- |
 | Admin UI | Admin users, roles, permissions, RBAC cache, operational controls | Same-origin admin app routes backed by `admin.AdminService` gRPC |
-| Web UI | Authenticated operational app, dashboard, orders, agent Career pages, AI Agent panel, full-page `/chatgpt-client/` | User service gRPC, agent service HTTP |
-| Customer UI | Customer registration, profile/orders, customer Career self-service, and customer AI chat workflows | User service gRPC, agent service HTTP |
+| Web UI | Authenticated operational app, dashboard, orders/pricing rules, agent Career pages, AI Agent panel, full-page `/chatgpt-client/` | User service gRPC, agent service HTTP |
+| Customer UI | Customer registration, profile/addresses/orders, product cart/checkout, customer Career self-service, and customer AI chat workflows | User service gRPC, agent service HTTP |
 
 Validated ownership:
 
@@ -40,6 +40,8 @@ Validated ownership:
 - Customer Career pages use same-origin customer endpoints under `/api/customer/career/*`; the customer app forwards the session JWT to `career.CareerProfileService`, `career.JobService`, `career.JobCartService`, and `career.JobApplicationService`.
 - `ceerat-web-ui` is an active-agent portal. Do not allow customer/admin sessions to use agent-only pages or agent chat routes.
 - `ceerat-customer-ui` is an active-customer portal. Do not allow agent/admin sessions to use customer-only pages, customer career routes, or customer chat routes.
+- Customer profile, shipping, and billing address management belongs in `ceerat-customer-ui` preferences through same-origin customer profile APIs.
+- Customer product browse/cart/checkout/payment surfaces belong in `ceerat-customer-ui`. Agent tax, shipping, coupon, and repricing controls belong in the existing `ceerat-web-ui` Orders surface.
 - Customer Career pages are:
   - `/customer/career`
   - `/customer/career/profiles`
@@ -68,6 +70,62 @@ Customer Career rules:
 - Customer identity must be derived by backend Career services from the authenticated JWT and `customers.user_id`; UI requests must not send or trust arbitrary `customer_id` values.
 - The browser must call only same-origin customer UI routes. The app server forwards the JWT to backend gRPC.
 - Update `apps-repo/docs/app-surface-inventory.json` whenever customer Career routes, templates, static files, or API bridges change.
+
+## Commerce And Order Pricing UI
+
+Customer routes:
+
+```text
+GET /preferences
+GET /customer/products
+GET /customer/products/cart
+GET /customer/products/checkout
+GET /customer/products/checkout/payment
+GET /customer/orders
+GET /customer/orders/{id}
+```
+
+Customer same-origin APIs:
+
+```text
+GET   /api/customer/me
+PATCH /api/customer/me
+POST  /api/customer/products/checkout/quote
+POST  /api/customer/products/checkout
+POST  /api/customer/products/orders/{id}/payment-session
+```
+
+Customer workflow rules:
+
+- Preferences manages separate profile, shipping, and billing addresses. Shipping and billing require line 1, city, state, country, and postal code.
+- A "billing same as shipping" checkbox copies explicit values; it is not a backend address fallback.
+- Checkout reviews snapshotted shipping/billing destinations, selects Free/Standard/Three day/Next day shipping, accepts an optional coupon code, and displays subtotal, discount, shipping, tax, and total.
+- Tax labels/rates and totals come only from the quote API. Browser JavaScript must not compute trusted coupon, shipping, tax, or total values.
+- Checkout errors for missing addresses, invalid coupon, or unavailable shipping must be visible and actionable, with a link to `/preferences` for address correction.
+- Order detail shows the persisted address and pricing snapshot.
+
+Agent route:
+
+```text
+GET /orders
+```
+
+Agent same-origin APIs:
+
+```text
+GET    /api/order-pricing-rules
+POST   /api/order-pricing-rules
+DELETE /api/order-pricing-rules/{id}
+POST   /api/orders/{id}/pricing
+```
+
+Agent workflow rules:
+
+- The Orders surface uses subnavigation and keeps order work separate from tax/shipping/coupon rule management.
+- Built-in rows show Standard tax at 9 percent and Free ($0), Standard ($5), Three day ($10), and Next day ($20) shipping.
+- Rule forms support tax, shipping, and discount/coupon kinds; fixed/percentage value, code, minimum subtotal, free-shipping threshold, priority, country/state, active window, and taxable-shipping state.
+- Repricing uses the order's shipping snapshot and displays the full persisted breakdown.
+- Pricing-rule mutations remain agent/admin-only even when the browser route is same-origin.
 
 ## Browser/API Boundary
 

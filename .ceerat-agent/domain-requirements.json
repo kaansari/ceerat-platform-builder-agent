@@ -1,5 +1,70 @@
 {
   "domains": {
+    "commerce": {
+      "must_have_fields": [
+        {
+          "name": "customers.shipping_and_billing_addresses",
+          "requirement": "Customers store distinct profile, shipping, and billing addresses. Complete shipping and billing addresses require line1, city, state, country, and postal_code.",
+          "implementation_hint": "Expose shipping_address and billing_address through customer.Customer and UpdateMyCustomerProfile. Customer self-service identity comes from JWT context."
+        },
+        {
+          "name": "orders.address_and_pricing_snapshot",
+          "requirement": "Orders snapshot shipping address, billing address, subtotal, discount, shipping, tax, total, selected shipping method, coupon code/label, tax rate, and tax label.",
+          "implementation_hint": "Copy explicit customer shipping/billing addresses into orders during creation. Repricing must use the order shipping snapshot and reject missing snapshots."
+        },
+        {
+          "name": "order_pricing_rules",
+          "requirement": "Tax, shipping, and coupon behavior uses OrderPricingRule with kind, calculation, value, minimum subtotal, region, active window, priority, and optional code.",
+          "implementation_hint": "Use kind tax, shipping, or discount. Fixed and percentage calculations are supported; discount codes are normalized and matched case-insensitively."
+        }
+      ],
+      "must_have_relationships": [
+        {
+          "name": "customer_addresses_to_order",
+          "requirement": "Checkout resolves the authenticated customer, requires explicit shipping and billing addresses, and snapshots both onto the order.",
+          "implementation_hint": "Do not accept customer_id, tax region, shipping address, billing address, line prices, or totals as trusted browser checkout authority."
+        },
+        {
+          "name": "cart_to_order_pricing",
+          "requirement": "Cart quote and checkout use the same server-owned pricing calculator after active catalog item discounts are applied.",
+          "implementation_hint": "Calculate subtotal - order discount + shipping + tax and round monetary values to cents. Checkout remains idempotent and transactional."
+        }
+      ],
+      "business_rules": [
+        {
+          "name": "shipping_address_tax_jurisdiction",
+          "requirement": "Tax jurisdiction is determined strictly from the order/customer shipping address, never profile or billing address.",
+          "implementation_hint": "Choose the most specific active state/country tax rule. Use 9 percent only when no configured rule matches."
+        },
+        {
+          "name": "default_shipping_methods",
+          "requirement": "Checkout offers Free at 0, Standard at 5, Three day at 10, and Next day at 20 unless a matching configured rule with the same name replaces that option.",
+          "implementation_hint": "Use stable default shipping IDs. Reject stale or unavailable IDs; do not remap legacy selections."
+        },
+        {
+          "name": "coupon_selection",
+          "requirement": "A coupon is an order discount rule with a non-empty code. It may be scheduled, regional, priority-based, and subject to a minimum subtotal.",
+          "implementation_hint": "Apply at most one order discount. Explicit valid code wins the coupon path; automatic discount rules have no code. Never trust a browser-calculated discount."
+        },
+        {
+          "name": "strict_new_system_state",
+          "requirement": "Commerce state has no backward-compatibility address or shipping-selection fallback.",
+          "implementation_hint": "Reject incomplete customer addresses, orders without address snapshots, and stale shipping IDs instead of falling back to profile/current-customer state."
+        }
+      ],
+      "workflow_rules": [
+        {
+          "name": "customer_checkout",
+          "requirement": "Customer product checkout quotes eligible shipping, coupon, tax, and total through order.OrderManager and displays shipping/billing address review before order creation.",
+          "implementation_hint": "Use customer UI same-origin endpoints backed by QuoteMyCartPricing and CheckoutMyCart. Address management belongs under customer preferences."
+        },
+        {
+          "name": "agent_order_pricing",
+          "requirement": "Agents manage tax, shipping, and coupon rules and may reprice user-scoped orders.",
+          "implementation_hint": "Use Create/List/Update/DeleteOrderPricingRule and RepriceOrder. Customer role receives only QuoteMyCartPricing and CheckoutMyCart access."
+        }
+      ]
+    },
     "career": {
       "must_have_fields": [
         {

@@ -236,9 +236,9 @@ Current service API areas in `ceerat-user-service`:
 | Area | Proto package | Responsibility |
 | --- | --- | --- |
 | Auth | `proto/auth` | Users, login, registration, token validation, profile/password changes. |
-| Customer | `proto/customer` | Customer profiles and customer ownership flows. |
+| Customer | `proto/customer` | Customer profiles, explicit shipping/billing addresses, and customer ownership flows. |
 | Service Manager | `proto/service` | Service catalog, product catalog, customer carts, and customer-service assignments. |
-| Order Manager | `proto/order` | Orders, order status, order services, self-service orders. |
+| Order Manager | `proto/order` | Orders, product/service lines, checkout, tax, shipping, coupons, pricing rules, address snapshots, and payment setup. |
 | Career | `proto/career` | Companies, jobs, skill profiles, resumes, job carts, and job applications. |
 | Calendar | `proto/calendar` | Customer-owned career calendar events, reminders, and job/application follow-ups. |
 | AI Threads | `proto/ai` | Persisted sanitized AI chat thread history for agent and customer profiles. |
@@ -636,6 +636,61 @@ Cart smoke tests should cover:
 - Customer cannot add inactive products.
 - Update, remove, and clear recalculate totals.
 - `carts` and `cart_items` migrate successfully against PostgreSQL.
+
+## Order Pricing, Tax, Shipping, And Coupon Standard
+
+Commerce pricing belongs to `order.OrderManager`; do not create separate tax, shipping, or coupon service processes while this owner exists.
+
+Customer self-service methods:
+
+```text
+order.OrderManager/QuoteMyCartPricing
+order.OrderManager/CheckoutMyCart
+order.OrderManager/GetMyOrder
+order.OrderManager/ListMyOrders
+```
+
+Agent/admin pricing methods:
+
+```text
+order.OrderManager/RepriceOrder
+order.OrderManager/CreateOrderPricingRule
+order.OrderManager/ListOrderPricingRules
+order.OrderManager/UpdateOrderPricingRule
+order.OrderManager/DeleteOrderPricingRule
+```
+
+Pricing rules:
+
+- `kind=tax` selects the most specific active state/country rule; when none matches, use 9 percent.
+- `kind=shipping` supports fixed/percentage pricing, region, schedule, minimum subtotal, priority, and free-shipping threshold.
+- Built-in shipping is Free ($0), Standard ($5), Three day ($10), and Next day ($20).
+- `kind=discount` with a non-empty code is a coupon. Codes are normalized and matched case-insensitively.
+- Apply at most one order discount. Code-less discount rules are automatic; coded rules require an explicit valid coupon.
+- Catalog store/product/service/variant/cart-item discounts remain `service.ServiceManager` behavior and feed the effective line subtotal before order-level pricing.
+
+Address and total rules:
+
+- `customer.Customer` and `UpdateMyCustomerProfileRequest` carry explicit `shipping_address` and `billing_address`.
+- A complete address requires line 1, city, state, country, and postal code.
+- Quote and checkout resolve the authenticated customer's stored addresses. Browser requests do not choose customer id, tax region, or trusted totals.
+- Tax jurisdiction comes strictly from shipping address.
+- Orders snapshot shipping and billing addresses plus discount, shipping, tax, labels/rates, and selected method/code.
+- Repricing uses the order shipping snapshot, not mutable customer/profile state.
+- Calculate `subtotal - discount + shipping + tax` and round money to cents.
+- Reject missing addresses, missing order address snapshots, invalid coupons, and stale shipping IDs. Do not add legacy-state remapping.
+
+Checkout tests should cover:
+
+- Explicit shipping and billing address validation.
+- Shipping-state tax overriding country/default tax.
+- Billing/profile state not influencing tax.
+- Default 9 percent tax only when no rule matches.
+- All four built-in shipping choices and configured replacements.
+- Coupon code, schedule, region, minimum subtotal, and invalid-code behavior.
+- Quote and checkout calculation parity.
+- Address and pricing snapshots on created orders.
+- Customer ownership, idempotency, payment amount, and transactional cart clearing.
 
 Career methods are owned by `proto/career` inside `ceerat-user-service`:
 

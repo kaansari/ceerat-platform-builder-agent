@@ -497,9 +497,9 @@
           <h3>Owned Capabilities</h3>
           <ul>
             <li>Auth, token validation, users, account status.</li>
-            <li>Customer profiles and customer ownership flows.</li>
+            <li>Customer profiles, shipping/billing addresses, and customer ownership flows.</li>
             <li>Service catalog, product catalog, and carts.</li>
-            <li>Orders and order service lines.</li>
+            <li>Orders, product/service lines, checkout, tax, shipping, coupons, address snapshots, and payment setup.</li>
             <li>Career companies, jobs, skill profiles, resumes, reusable employment records, job carts, metrics, applications, and customer calendar events.</li>
             <li>RBAC roles, permissions, cache, and admin hooks.</li>
           </ul>
@@ -508,9 +508,9 @@
       <h3 style="margin-top: 18px;">Registered gRPC Areas</h3>
       <div class="grid four">
         <div class="mini"><code>auth.Auth</code><p>Login, token validation, users.</p></div>
-        <div class="mini"><code>customer.CustomerService</code><p>Customer profiles and ownership.</p></div>
+        <div class="mini"><code>customer.CustomerService</code><p>Customer profiles, explicit shipping/billing addresses, and ownership.</p></div>
         <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
-        <div class="mini"><code>order.OrderManager</code><p>Orders and order service lines.</p></div>
+        <div class="mini"><code>order.OrderManager</code><p>Orders, checkout quotes, tax, shipping, coupons, repricing, and address snapshots.</p></div>
         <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, reusable employment records, PDF downloads, and customer Career metrics.</p></div>
         <div class="mini"><code>career.JobService</code><p>Global companies/jobs, ATS import, job search, market metrics, and duplicate company validation.</p></div>
         <div class="mini"><code>career.JobCartService</code><p>Customer saved-job cart with per-job resume selection.</p></div>
@@ -518,7 +518,7 @@
         <div class="mini"><code>calendar.CalendarService</code><p>Customer-owned career calendar events and job/application follow-ups.</p></div>
         <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
       </div>
-      <div class="rule good">Product and Cart belong to <code>service.ServiceManager</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. Calendar belongs to <code>proto/calendar</code> as <code>calendar.CalendarService</code> and is implemented inside <code>ceerat-user-service</code> for customer-owned events and follow-ups. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code> inside <code>ceerat-user-service</code>. New work should check inventories before inventing a new owner.</div>
+      <div class="rule good">Product catalog, carts, and catalog/item discounts belong to <code>service.ServiceManager</code>. Checkout finalization, tax, shipping, order coupons, and repricing belong to <code>order.OrderManager</code>; customer shipping/billing addresses belong to <code>customer.CustomerService</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. Calendar belongs to <code>proto/calendar</code> as <code>calendar.CalendarService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code>. New work should check inventories before inventing a new owner.</div>
     </section>
 
     <section id="security" class="panel">
@@ -579,7 +579,7 @@
       <div class="lane">
         <div class="lane-name">Web UI<br><code>:3000</code></div>
         <div class="lane-body">
-          <div class="box"><strong>Owns</strong><span>Agent operational dashboard, orders, agent Career pages, AI Agent panel.</span></div>
+          <div class="box"><strong>Owns</strong><span>Agent operational dashboard, orders, tax/shipping/coupon rules, repricing, agent Career pages, AI Agent panel.</span></div>
           <div class="box"><strong>Session</strong><span>Active agent only.</span></div>
           <div class="box"><strong>Chat</strong><span>Forwards to <code>/agent/chat</code>.</span></div>
           <div class="box"><strong>Threads</strong><span>Uses <code>/api/agent/threads</code> -> <code>/agent/threads</code>.</span></div>
@@ -589,7 +589,7 @@
       <div class="lane">
         <div class="lane-name">Customer UI<br><code>:3005</code></div>
         <div class="lane-body">
-          <div class="box"><strong>Owns</strong><span>Customer registration, profile, orders, Career self-service, customer AI chat.</span></div>
+          <div class="box"><strong>Owns</strong><span>Customer registration, profile and addresses, products/cart/checkout, orders, Career self-service, customer AI chat.</span></div>
           <div class="box"><strong>Session</strong><span>Active customer only.</span></div>
           <div class="box"><strong>Chat</strong><span>Forwards to <code>/customer/chat</code>.</span></div>
           <div class="box"><strong>Threads</strong><span>Uses shared browser path <code>/api/agent/threads</code> -> <code>/customer/threads</code>.</span></div>
@@ -597,6 +597,7 @@
           <div class="box"><strong>Jobs</strong><span><code>/customer/career/jobs</code> lists/searches; <code>/customer/career/jobs/{id}</code> shows details.</span></div>
           <div class="box"><strong>Calendar</strong><span><code>/customer/career/calendar</code> uses same-origin calendar APIs backed by <code>calendar.CalendarService</code>.</span></div>
           <div class="box"><strong>Resume Import</strong><span><code>/customer/career/resumes/import</code> parses text/markdown, reviews the draft, then imports through CareerProfile APIs.</span></div>
+          <div class="box"><strong>Commerce</strong><span><code>/preferences</code> manages explicit shipping/billing addresses; checkout quotes coupon, shipping, shipping-state tax, and total through <code>order.OrderManager</code>.</span></div>
         </div>
       </div>
     </section>

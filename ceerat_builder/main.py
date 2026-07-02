@@ -208,6 +208,13 @@ def _domain_name(request: str) -> str:
 
 def _domain_key(request: str) -> str:
     terms = _request_terms(request)
+    term_set = set(terms)
+    if term_set & {"tax", "shipping", "coupon", "checkout"}:
+        return "commerce"
+    if "pricing" in term_set and term_set & {"order", "cart", "product"}:
+        return "commerce"
+    if "address" in term_set and term_set & {"shipping", "billing", "checkout", "order", "customer"}:
+        return "commerce"
     return terms[0] if terms else "requested"
 
 

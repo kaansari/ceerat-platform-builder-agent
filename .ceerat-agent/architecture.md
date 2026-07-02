@@ -113,12 +113,12 @@ It owns:
 
 - JWT auth and token validation.
 - User accounts.
-- Customer profiles.
+- Customer profiles with distinct profile, shipping, and billing addresses.
 - Service catalog records.
 - Product catalog records.
 - Customer carts and cart items for services/products.
 - Customer-service assignments.
-- Orders and order service lines.
+- Orders, product/service lines, address snapshots, tax, shipping, coupons, and payment setup metadata.
 - Career companies, jobs, skill profiles, resumes, job carts, job applications, and customer calendar events.
 - AI chat thread history for agent and customer profiles.
 - RBAC roles and gRPC method permissions.
@@ -146,6 +146,13 @@ Validated ownership rule:
 
 - Product catalog and Cart capabilities belong to `service.ServiceManager` unless a future inventory shows a stronger owner.
 - Cart is a customer-owned workflow over service/product catalog items. Customer callers are resolved to their own `customers.user_id` profile and cannot choose another `customer_id`.
+- Checkout finalization, cart pricing quotes, order-level coupons, shipping methods, and tax rules belong to `order.OrderManager`. Catalog/item discounts remain owned by `service.ServiceManager`.
+- Customer shipping and billing addresses belong to `customer.CustomerService`. `UpdateMyCustomerProfile` is customer-owned and must derive identity from JWT context.
+- Shipping and billing addresses are explicit new-system state. Quote/order creation requires complete addresses; order creation snapshots both. Tax jurisdiction uses shipping only, and repricing uses the immutable order shipping snapshot.
+- Order pricing is `subtotal - order discount + shipping + tax`. The backend is authoritative for catalog-effective subtotal, coupon eligibility, shipping eligibility, tax selection, cent rounding, and final total.
+- Default shipping options are Free ($0), Standard ($5), Three day ($10), and Next day ($20). Default tax is 9 percent only when no configured state/country tax rule matches.
+- Order coupon codes are `OrderPricingRule` records with `kind=discount` and a non-empty code. Coupon validation is case-insensitive and may enforce schedule, region, minimum subtotal, and priority.
+- Do not add backward-compatibility fallbacks for missing addresses, missing order address snapshots, or stale shipping method IDs; reject invalid state.
 - Admin/agent callers may inspect or manage carts only through protected service APIs and explicit customer context.
 - Career capability belongs to `ceerat-user-service` under `proto/career`.
 - Career company and job records are global operational data for agent/admin workflows, not per-agent-owned records. ATS crawlers import them through `career.JobService/ImportATSJobs`; crawlers must not write directly to Postgres or Typesense.

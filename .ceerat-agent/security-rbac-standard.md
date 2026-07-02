@@ -114,6 +114,9 @@ Examples:
 - Customer service assignments are filtered or denied by owner.
 - Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
 - Order reads and writes are scoped by authenticated user id.
+- Customer address updates derive customer identity from JWT and may update only the caller's shipping and billing addresses.
+- Customer cart quote/checkout derives customer, cart, shipping address, billing address, tax jurisdiction, prices, and totals server-side.
+- Agents/admins manage tax, shipping, and coupon rules. Customers cannot list or mutate pricing rules and cannot reprice arbitrary orders.
 - Product catalog reads are visibility-scoped: customer role can only read/list active products.
 - Cart product items are visibility-scoped: customer role can add active products only.
 - Product catalog writes are RBAC-scoped to admin/agent through `service.ServiceManager`.
@@ -153,6 +156,41 @@ If a customer AI tool reports permission denied for a customer-owned action, che
 2. The backend method must remain protected by JWT, RBAC, and ownership checks.
 
 Do not "fix" customer AI permission errors by making methods public, widening customer RBAC beyond self-service, or allowing customer tools to accept arbitrary `customer_id`.
+
+## Order Pricing And Address RBAC
+
+All customer, order-pricing, coupon, tax, and shipping methods remain protected. None belong in `DefaultPublicMethods`.
+
+Customer default permissions include:
+
+```text
+/customer.CustomerService/GetMyCustomerProfile
+/customer.CustomerService/UpdateMyCustomerProfile
+/order.OrderManager/QuoteMyCartPricing
+/order.OrderManager/CheckoutMyCart
+/order.OrderManager/GetMyOrder
+/order.OrderManager/ListMyOrders
+```
+
+Agent default permissions include:
+
+```text
+/order.OrderManager/RepriceOrder
+/order.OrderManager/CreateOrderPricingRule
+/order.OrderManager/ListOrderPricingRules
+/order.OrderManager/UpdateOrderPricingRule
+/order.OrderManager/DeleteOrderPricingRule
+```
+
+Security rules:
+
+- Customer quote/checkout accepts no trusted customer id, tax state, address, unit price, discount, shipping charge, tax, or total from the browser.
+- Tax jurisdiction is resolved from the authenticated customer's explicit shipping address or the immutable order shipping snapshot.
+- Billing address is persisted/snapshotted but never used as tax jurisdiction.
+- Coupon eligibility and shipping-method availability are recalculated server-side.
+- `RepriceOrder` stays user-scoped in the repository.
+- Pricing-rule writes are agent/admin only; customer role can consume only the sanitized quote result.
+- Reject incomplete addresses and stale shipping selections. Do not widen access or add public/legacy bypasses.
 
 ## Current Customer Career RBAC Methods
 
