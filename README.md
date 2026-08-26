@@ -160,6 +160,15 @@ Useful command roles:
 - `docs` points to relevant builder, service, inventory, and app documents, plus the post-human-validation documentation checklist.
 - `verify contract-and-service` returns the combined verification path for changes that touch both contracts and service implementation.
 - `check drift` finds inventory/security drift before or after implementation.
+- `check apps` also compares the live agent/customer definitions in `tools.go` with `app-surface-inventory.json`, in addition to validating app routes and referenced files.
+
+Canonical phase-one platform verification is run from `infra`:
+
+```bash
+make verify-platform
+```
+
+The aggregate target runs builder contract/RBAC/app-inventory checks followed by the pinned code gate (`make verify-code`). Kubernetes, live API tests, and browser tests are outside this phase.
 
 Builder knowledge update rule:
 

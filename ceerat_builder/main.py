@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -2072,6 +2073,19 @@ def _app_impact_payload(project_root: Path, target: str, route: Optional[str], s
     }
 
 
+def _tool_profiles_from_source(source: str) -> Dict[str, List[str]]:
+    agent_start = source.find("func toolDefinitions()")
+    customer_start = source.find("func customerToolDefinitions()")
+    runner_start = source.find("func (r *ToolRunner)", customer_start)
+    if agent_start < 0 or customer_start < 0 or runner_start < 0:
+        return {"agent": [], "customer": []}
+    pattern = re.compile(r'Name:\s*"([a-z][a-z0-9_]*)"')
+    return {
+        "agent": list(dict.fromkeys(pattern.findall(source[agent_start:customer_start]))),
+        "customer": list(dict.fromkeys(pattern.findall(source[customer_start:runner_start]))),
+    }
+
+
 def _app_check_payload(project_root: Path) -> Dict[str, Any]:
     inventories = _load_inventories(project_root)
     workspace = _workspace_root(project_root)
@@ -2100,12 +2114,33 @@ def _app_check_payload(project_root: Path) -> Dict[str, Any]:
                     "app": app_item.get("name", ""),
                     "path": file_path,
                 })
+
+    tool_source_path = workspace / "apps-repo" / "ai" / "ceerat-agent-service" / "internal" / "agent" / "tools.go"
+    ai_app = next((item for item in inventories["apps"].get("ai_apps", []) if item.get("name") == "ceerat-agent-service"), None)
+    if tool_source_path.is_file() and ai_app is not None:
+        actual_profiles = _tool_profiles_from_source(tool_source_path.read_text(encoding="utf-8"))
+        inventory_profiles = {
+            "agent": ai_app.get("tools", []),
+            "customer": ai_app.get("customer_tools", []),
+        }
+        for profile in ("agent", "customer"):
+            actual = set(actual_profiles[profile])
+            documented = set(inventory_profiles[profile])
+            if actual != documented:
+                issues.append({
+                    "severity": "high",
+                    "type": "ai_tool_inventory_drift",
+                    "profile": profile,
+                    "missing_from_inventory": sorted(actual - documented),
+                    "stale_in_inventory": sorted(documented - actual),
+                })
     return {
         "ok": not issues,
         "issues": issues,
         "checked": [
             "duplicate routes inside each app inventory entry",
             "template/static/chat asset inventory paths exist on disk",
+            "agent and customer AI tool definitions match app inventory",
         ],
     }
 

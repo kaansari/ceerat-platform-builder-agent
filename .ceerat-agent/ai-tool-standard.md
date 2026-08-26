@@ -42,6 +42,7 @@ POST /customer/chat
 Current agent/admin tools on `POST /agent/chat`:
 
 ```text
+get_current_user
 create_customer
 list_customers
 list_services
@@ -52,7 +53,6 @@ get_order
 update_order_status
 add_service_to_order
 remove_service_from_order
-get_current_user
 create_company
 list_companies
 get_company
@@ -61,20 +61,23 @@ create_job
 search_jobs
 get_job
 close_job
-download_resume
-get_career_market_metrics
 list_applications_for_job
 update_application_status
 ```
 
+This profile currently exposes 21 tools.
+
 Current customer-safe tools on `POST /customer/chat`:
 
 ```text
+get_current_user
 get_my_customer_profile
 update_my_customer_profile
 list_my_skill_profiles
 create_skill_profile
 add_skill_to_profile
+parse_resume_text
+import_resume_draft
 list_my_resumes
 create_resume
 download_resume
@@ -93,6 +96,8 @@ apply_to_cart_jobs
 list_my_applications
 get_my_application
 ```
+
+This profile currently exposes 25 tools. These lists must match `toolDefinitions()` and `customerToolDefinitions()` in `internal/agent/tools.go` and the corresponding `tools` and `customer_tools` arrays in `apps-repo/docs/app-surface-inventory.json`.
 
 The agent-facing browser UI remains in:
 
