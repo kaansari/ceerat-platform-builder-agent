@@ -841,6 +841,7 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
             "ceerat-platform-builder-agent/.ceerat-agent/module-generation-standard.md",
             "ceerat-platform-builder-agent/.ceerat-agent/service-standards.md",
             "ceerat-platform-builder-agent/.ceerat-agent/security-rbac-standard.md",
+            "ceerat-platform-builder-agent/.ceerat-agent/public-ai-integration-security-profile.md",
             "Prefer extending existing service boundaries when inventory shows ownership.",
             "Use contract-first service development.",
         ],
@@ -1724,7 +1725,7 @@ def _verification_contract_and_service_payload(target: str) -> Dict[str, Any]:
 def _post_validation_checklist() -> List[str]:
     return [
         "Only after tests pass and a human validates behavior, update builder-agent standards if the platform pattern changed.",
-        "Update .ceerat-agent docs for durable builder knowledge: architecture, module-generation-standard, service-standards, security-rbac-standard, ai-tool-standard when relevant.",
+        "Update .ceerat-agent docs for durable builder knowledge: architecture, module-generation-standard, service-standards, security-rbac-standard, public-ai-integration-security-profile, and ai-tool-standard when relevant.",
         "Update service docs for user-facing truth: api.md, api-testing.md, grpc-security.md, logging.md, architecture.md, and cookbook docs when relevant.",
         "Update inventories that describe the final surface: contract-inventory.json, grpc-service-inventory.json, app-surface-inventory.json when relevant.",
         "Run ceerat-builder check drift --output json and ceerat-builder check apps --output json after doc/inventory updates.",
@@ -1781,6 +1782,10 @@ def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
             {
                 "path": "ceerat-platform-builder-agent/.ceerat-agent/security-rbac-standard.md",
                 "purpose": "JWT/RBAC/ownership standards.",
+            },
+            {
+                "path": "ceerat-platform-builder-agent/.ceerat-agent/public-ai-integration-security-profile.md",
+                "purpose": "Public MCP/OAuth, identity-boundary, LLM-safe error, and production-gate standards.",
             },
             {
                 "path": "ceerat-platform-builder-agent/.ceerat-agent/ai-tool-standard.md",
@@ -2172,6 +2177,7 @@ def _codex_context_payload(project_root: Path) -> Dict[str, Any]:
             ".ceerat-agent/module-generation-standard.md",
             ".ceerat-agent/service-standards.md",
             ".ceerat-agent/security-rbac-standard.md",
+            ".ceerat-agent/public-ai-integration-security-profile.md",
         ],
         "inventories": {
             "services": str(_workspace_path(project_root, "services-repo/docs/grpc-service-inventory.json")),

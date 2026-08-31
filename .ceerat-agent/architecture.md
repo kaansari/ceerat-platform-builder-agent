@@ -2,6 +2,9 @@
 
 This file is loaded by the Ceerat Service Builder Agent. It gives the agent the platform context it needs when planning backend service capabilities, contracts, security, RBAC, and database objects.
 
+Public MCP or LLM-facing integrations must also apply
+`public-ai-integration-security-profile.md`.
+
 ## Builder Scope
 
 This builder agent is intentionally services-only.
@@ -77,6 +80,16 @@ AI agent service
      | approved gRPC tool calls
      v
 Backend services
+
+External ChatGPT / Codex customer
+     |
+     | remote MCP + OAuth-delegated bearer token
+     v
+ceerat-agent-gateway
+     |
+     | private authenticated gRPC
+     v
+Backend services
 ```
 
 ## Major Components
@@ -88,8 +101,44 @@ Backend services
 | `services-repo/services/ceerat-user-service` | Core OLTP service for auth, users, customers, service/product catalog, orders, career, calendar, AI threads, RBAC, and admin/operations gRPC | Contracts, PostgreSQL |
 | PostgreSQL OLTP | Source of truth for transactional records | Owned by backend services |
 | Future BI database | Business events, rollups, AI insights, executive recommendations | Receives copied/evented data |
+| `apps-repo/ai/ceerat-agent-gateway` | Public remote MCP resource server, OAuth token validation, strict tool schemas, confirmations, structured errors, audit and private gRPC adaptation | Keycloak/OIDC, backend gRPC |
 
 Existing app and AI callers are documented in inventories for compatibility checks, but this builder does not design those surfaces.
+
+## Validated Public Agent Gateway Boundary
+
+The Phase 1 public-agent interoperability milestone was validated on 2026-08-31
+from Codex and ChatGPT developer mode. Treat the following as reusable platform
+architecture rules when a service change is exposed to an external model:
+
+- Publish a narrow vendor-neutral MCP tool, never arbitrary gRPC reflection or
+  a generic RPC proxy.
+- The LLM host performs OAuth authorization code + PKCE and stores the tokens.
+  The model never receives passwords, MFA values, authorization codes, refresh
+  tokens, client secrets or session cookies.
+- OAuth obtains the access token; protected MCP requests still use
+  `Authorization: Bearer <token>`.
+- The gateway validates signature/JWKS, issuer, audience/resource, expiry,
+  client, configured CEERAT identity claim and scopes before any gRPC call.
+- Identity and ownership IDs come from the validated principal. External tool
+  inputs must not accept `user_id`, `customer_id`, role or scopes for self-service
+  operations.
+- Public OAuth tokens are not general internal service credentials. Adapt them
+  to an authenticated, narrow internal assertion or exchange and preserve
+  service RBAC plus repository ownership checks.
+- MCP input schemas must allow reserved protocol metadata such as
+  `params._meta` while rejecting other unknown application fields.
+- Consequential operations use prepare/confirm/execute and advertise accurate
+  read-only/destructive/idempotent annotations. Server enforcement remains
+  authoritative.
+- Return a stable structured result/error envelope with request ID and operation
+  state. Keep detailed token-validation reasons in sanitized server logs, not
+  model-visible responses.
+
+The completed milestone exposes identity, low-risk customer profile and
+connection tools only. Automatic Keycloak-registration-to-CEERAT provisioning,
+durable shared gateway state, authorization-server revocation integration and
+a gateway-specific internal assertion remain production requirements.
 
 ## Dependency Rules
 

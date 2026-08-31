@@ -59,6 +59,34 @@ Frontend apps, admin apps, customer apps, and AI agents must not write directly 
 - Structured logging.
 - Tests for security, ownership, and persistence behavior.
 
+## Public Agent Integration Impact
+
+When a backend capability is or may become an external MCP tool, the service
+plan must identify the gateway impact without moving domain authorization into
+the gateway. The backend remains authoritative for RBAC, ownership, validation,
+persistence and canonical gRPC errors.
+
+Require the plan to cover:
+
+- the existing owning RPC rather than a duplicate public REST implementation;
+- the least-privilege customer OAuth scope;
+- a strict model-safe input/output/error schema with no user/customer identity
+  override fields;
+- read-only, destructive and idempotency annotations;
+- prepare/confirm/execute for consequential writes;
+- public-token-to-private-identity exchange without forwarding a general public
+  token as an internal credential;
+- sanitized audit correlation across MCP and gRPC;
+- client compatibility with standard MCP reserved metadata;
+- caller documentation and golden tests for Codex and ChatGPT when the tool is
+  part of the published surface.
+
+The validated Phase 1 public surface is intentionally limited to identity,
+customer profile and connection management. Do not expose jobs, skills,
+resumes, applications or administrative RPCs merely because an internal agent
+already has access; each later public phase needs a separate scope, schema,
+ownership, abuse, confirmation and test review.
+
 ## External Ingestion Standard
 
 External crawlers, importers, and batch jobs must import platform data through authenticated service APIs, not direct SQL. The backend service that owns the domain owns validation, dedupe, upsert behavior, timestamps, RBAC, and repository persistence.

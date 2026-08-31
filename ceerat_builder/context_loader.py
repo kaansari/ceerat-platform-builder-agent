@@ -13,6 +13,7 @@ ARCHITECTURE_DOCS = [
     "module-generation-standard.md",
     "service-standards.md",
     "security-rbac-standard.md",
+    "public-ai-integration-security-profile.md",
 ]
 
 PROMPTS = [

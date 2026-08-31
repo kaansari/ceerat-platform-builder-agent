@@ -181,6 +181,17 @@ human validates the behavior. Service docs and inventories should describe the
 final implemented surface; builder-agent standards should capture reusable,
 validated platform rules rather than speculative plans.
 
+The 2026-08-31 public-agent Phase 1 milestone is such a validated rule set.
+`.ceerat-agent/architecture.md`, `security-rbac-standard.md`, and
+`service-standards.md` now include the reusable MCP/OAuth/private-gRPC boundary
+proven with Codex and ChatGPT. The deployment-specific evidence and remaining
+gates remain owned by `infra/docs/public-agent-phase-1-milestone.md`.
+
+The consolidated normative checklist is
+`.ceerat-agent/public-ai-integration-security-profile.md`. Apply it whenever a
+service plan introduces a public MCP gateway, OAuth-delegated AI client, or
+external-to-internal identity exchange.
+
 Lightweight app discovery tools:
 
 ```bash

@@ -2,6 +2,52 @@
 
 Backend services are the security boundary. Apps and AI agents call backend APIs; they do not write directly to the OLTP database.
 
+For the complete reusable gateway checklist and production verification gate,
+apply `public-ai-integration-security-profile.md` together with this standard.
+
+## External MCP OAuth Standard
+
+For public ChatGPT, Codex or compatible MCP integrations, apply all of these
+validated rules:
+
+1. Publish OAuth Protected Resource Metadata and authorization-server/OIDC
+   discovery. The MCP resource identifier and JWT audience must match exactly.
+2. Use authorization code + PKCE `S256` for customer delegation. Public clients
+   use token endpoint auth method `none`; confidential predefined clients may
+   use an explicitly configured supported client-authentication method.
+3. Treat OAuth and bearer authentication as complementary: OAuth obtains and
+   refreshes the credential; every protected MCP call sends the access token in
+   the HTTP `Authorization` header.
+4. Validate RS256 signature through JWKS, issuer, audience, expiry/not-before,
+   configured client claim, configured CEERAT identity claim and scopes. Never
+   trust identity, role, scope, customer ID or grant ID from tool arguments.
+5. Keep credential entry and consent on a CEERAT-controlled authorization page.
+   Passwords, MFA/recovery values, codes, cookies, access/refresh tokens and
+   client secrets must not enter prompts, tool arguments, structured results,
+   logs or audit payloads.
+6. Use exact redirect URI matching. Support ChatGPT's exact callback-specific
+   URI unless the provider correctly advertises and returns RFC 9207 issuer
+   identification for the stable callback.
+7. If ChatGPT requests `offline_access`, the client must be explicitly allowed
+   that scope. Refresh-token use and revocation remain between the MCP host and
+   authorization server, outside model context.
+8. Define custom identity attributes in the Keycloak declarative user profile.
+   Keycloak 26 can discard undefined attributes, preventing token mappers from
+   emitting them. `ceerat_user_id` is administrator-managed and maps to an
+   active CEERAT customer-role user.
+9. A missing `sub` may fall back only to a separately configured and validated
+   stable CEERAT identity claim. A missing client or CEERAT identity claim is
+   an authentication failure.
+10. Public errors reveal only stable OAuth/CEERAT codes, required scopes and
+    safe recovery actions. Log the detailed validation reason server-side with
+    request/tool correlation, never the credential.
+
+Authentication success at the authorization server does not establish a
+CEERAT customer. Registration provisioning must atomically or recoverably
+create/link the CEERAT user and customer, store the identity mapping, and avoid
+direct SQL from the gateway. Until that workflow exists, manual linking is a
+development-only operation.
+
 ## gRPC Security Flow
 
 Protected gRPC calls flow through:
@@ -275,3 +321,11 @@ Browser admin UIs may expose same-origin HTTP endpoints, but those app routes mu
 ## Test Requirements
 
 Plans must include tests for missing token, invalid token, RBAC denied, RBAC allowed, ownership denied, ownership allowed, admin-only gRPC methods, and AI tool permission behavior when tools are involved.
+
+Public MCP changes additionally require tests for protected-resource discovery,
+authorization code + PKCE, exact redirect matching, issuer/audience/client and
+identity claims, missing/expired/wrong-audience tokens, scope denial,
+`offline_access` compatibility where requested, reserved MCP `_meta`,
+anti-enumerating OAuth challenges, structured error redaction, private gRPC
+RBAC/ownership, confirmation enforcement, connection revocation, and at least
+two real MCP clients. The Phase 1 baseline clients are Codex and ChatGPT.
