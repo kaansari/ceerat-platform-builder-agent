@@ -128,6 +128,12 @@ architecture rules when a service change is exposed to an external model:
   service RBAC plus repository ownership checks.
 - MCP input schemas must allow reserved protocol metadata such as
   `params._meta` while rejecting other unknown application fields.
+- The gateway must enforce those closed schemas at runtime for public,
+  protected, no-argument, and nested argument objects; tool metadata is not the
+  enforcement boundary.
+- Authentication-only tools require a fully validated bearer token but need no
+  additional business scope. Their OAuth tool declaration uses an empty scope
+  list rather than requiring `openid` to appear in the access token scope claim.
 - Consequential operations use prepare/confirm/execute and advertise accurate
   read-only/destructive/idempotent annotations. Server enforcement remains
   authoritative.

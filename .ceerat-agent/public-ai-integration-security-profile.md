@@ -87,6 +87,9 @@ blocker until removed.
 - Expose a small allowlisted tool surface with strict JSON Schemas.
 - Reject unknown model-controlled fields, while accepting reserved protocol
   metadata such as MCP `params._meta` separately from business inputs.
+- Enforce closed schemas in runtime decoding for no-argument tools, nested
+  objects, public tools, and protected tools; schema publication alone is not a
+  security control.
 - Derive ownership from authenticated identity, never from tool arguments.
 - Annotate read-only, consequential, and destructive tools accurately, but do
   not rely on annotations as enforcement.
@@ -97,6 +100,10 @@ blocker until removed.
 - Require idempotency keys for retryable writes and retain results long enough
   to cover realistic client retry windows.
 - Apply request-size, rate, concurrency, and downstream timeout limits.
+- Authentication-only tools may use an empty additional-scope requirement after
+  full bearer-token validation. Do not treat absence of `openid` from an access
+  token's scope claim as an authentication failure when the authorization
+  server has otherwise issued a valid token for the protected resource.
 
 ## LLM-safe errors
 

@@ -2,6 +2,33 @@
 
 This file gives the builder agent rules for planning Ceerat AI tools and future intelligence features.
 
+## Public MCP Tool Contract Rules
+
+Public MCP gateways must enforce tool input schemas at runtime. Publishing
+`additionalProperties: false` is not sufficient: tools with no arguments,
+tools with nested objects, and protected tools must all reject undeclared
+model-controlled fields. Reserved MCP protocol metadata such as `params._meta`
+is decoded separately and must not be merged into business arguments.
+
+Use a stable safe error for rejected fields:
+
+```text
+code: INVALID_ARGUMENT
+agent_action: correct_arguments
+operation_state: not_started
+```
+
+An authentication-status or logout tool may require a valid OAuth bearer token
+without requiring an additional business scope. Do not require `openid` to be
+present in the access token's `scope` claim merely because the authorization
+request used OpenID Connect. The gateway must still validate signature, issuer,
+audience/resource, time bounds, authorized client, and verified identity before
+dispatch. Advertise an empty OAuth scope list for authentication-only tools so
+the MCP contract matches enforcement.
+
+These rules were validated against the public CEERAT gateway from Codex after
+Phase 1 PR 01 deployment on 2026-09-02.
+
 ## Current Agent Boundary
 
 `apps-repo/ai/ceerat-agent-service` is the active HTTP AI agent service. It validates a Ceerat JWT, calls OpenAI, and executes approved platform operations through backend service APIs.
