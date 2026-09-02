@@ -29,9 +29,39 @@ the MCP contract matches enforcement.
 These rules were validated against the public CEERAT gateway from Codex after
 Phase 1 PR 01 deployment on 2026-09-02.
 
+## Agent connection lifecycle responses
+
+Connection-list tools must not collapse authorization state and access-token
+expiry into one ambiguous `active` field. Return separate, closed values:
+
+```text
+authorization_status: active | revoked
+access_token_status: valid | expired
+is_current: boolean
+created_at: server timestamp
+last_used_at: server timestamp
+access_token_expires_at: server timestamp
+```
+
+Derive `is_current` from the authenticated connection identifier. Never allow a
+model to supply it or select a connection owner. Exactly one item should be
+current for the access token performing the list operation. Tracking the same
+connection again updates `last_used_at` without creating another record.
+
+Access-token expiry says nothing about whether an authorization-server session
+or refresh-token family remains usable. Tools must not claim that state without
+verification from the authorization server. If legacy `status` or `expires_at`
+fields are retained temporarily, mark them deprecated and ensure an expired
+access credential is never described as simply active.
+
+These rules were validated against the public PostgreSQL-backed CEERAT gateway
+from Codex after Phase 1 PR 02 deployment on 2026-09-02.
+
 ## Current Agent Boundary
 
-`apps-repo/ai/ceerat-agent-service` is the active HTTP AI agent service. It validates a Ceerat JWT, calls OpenAI, and executes approved platform operations through backend service APIs.
+`apps-repo/ai/ceerat-agent-service` is a legacy HTTP AI surface retained during
+migration. New public AI capabilities belong on the remote MCP gateway and must
+not be added to this legacy tool inventory.
 
 Current endpoints:
 

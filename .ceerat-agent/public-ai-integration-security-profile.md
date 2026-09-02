@@ -135,6 +135,15 @@ access tokens, refresh tokens, client secrets, or password-reset values.
   revocation state in durable shared storage for multi-instance deployments.
 - Bind records to user, client, scopes, operation, resource version, creation
   time, and expiry as appropriate.
+- Keep gateway authorization state (`active` or `revoked`) distinct from the
+  observed access-token state (`valid` or `expired`). Access-token expiry must
+  not be presented as verified authorization-server or refresh-family status.
+- Derive the current connection from the validated token identifier and return
+  an explicit `is_current`; never accept current/owner identity from tool
+  arguments.
+- Persist `created_at`, `last_used_at`, and `access_token_expires_at` as
+  server-owned timestamps. Repeated and concurrent observation of the same
+  connection must update it idempotently rather than create duplicates.
 - Make logout and connection revocation explicit, auditable operations.
 - Integrate authorization-server token/session revocation; deleting only a
   gateway process-local record is not sufficient.

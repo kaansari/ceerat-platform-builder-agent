@@ -140,11 +140,20 @@ architecture rules when a service change is exposed to an external model:
 - Return a stable structured result/error envelope with request ID and operation
   state. Keep detailed token-validation reasons in sanitized server logs, not
   model-visible responses.
+- Model a gateway connection's authorization and access-token lifecycle as
+  separate states. A locally non-revoked authorization is `active` or
+  `revoked`; its observed access token is independently `valid` or `expired`.
+  Do not infer refresh-token-family or authorization-server session state from
+  access-token expiry.
+- Derive the current connection identifier from the validated principal, never
+  from model-controlled arguments. Persist server-owned creation, last-use, and
+  access-token-expiry timestamps, and update repeated tracking idempotently.
 
-The completed milestone exposes identity, low-risk customer profile and
+The current milestone exposes identity, low-risk customer profile and
 connection tools only. Automatic Keycloak-registration-to-CEERAT provisioning,
-durable shared gateway state, authorization-server revocation integration and
-a gateway-specific internal assertion remain production requirements.
+durable shared gateway state, and gateway workload authentication are
+implemented. Authorization-server session revocation integration and the
+remaining Phase 1 security acceptance gates are still required.
 
 ## Dependency Rules
 
