@@ -60,6 +60,25 @@ The client allowlist is independent of issuer and audience checks. During a
 bounded migration it may include a named rollback client; remove that ID when
 the rollback client is disabled.
 
+## Session revocation
+
+- Use the validated `sid` plus OAuth client ID as the durable local connection
+  key across access-token rotation; keep `jti` only as token-level metadata.
+- Mark the owned connection revoked before the authorization-server request so
+  timeouts cannot restore gateway access.
+- Delete the matching normal/offline Keycloak session according to the
+  validated `offline_access` grant. Never retain a refresh token merely to make
+  gateway-side revocation possible.
+- Treat 204 and an already-absent 404 as idempotent success. Treat timeout,
+  denial, or malformed service authentication as `OUTCOME_UNKNOWN` while the
+  local deny decision remains effective.
+- Keycloak's supported admin operation targets a user session. If multiple
+  CEERAT clients share that SSO session, all can be signed out; tool descriptions
+  and confirmation UX must state that blast radius.
+- Keep the revoker credential in the deployment secret manager. Grant only the
+  minimum supported Keycloak permission and document any residual breadth of a
+  built-in role.
+
 ## Identity lifecycle
 
 OAuth login and CEERAT registration are distinct operations. A production

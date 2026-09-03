@@ -144,6 +144,11 @@ architecture rules when a service change is exposed to an external model:
 - Model a gateway connection's authorization and access-token lifecycle as
   separate states. A locally non-revoked authorization is `active` or
   `revoked`; its observed access token is independently `valid` or `expired`.
+- Model the connection key from authorization-session identity (`sid` plus
+  client ID), not access-token `jti`, so refresh does not create a new logical
+  connection. Confirmed revocation denies locally first and then deletes the
+  matching Keycloak normal/offline session through an isolated service
+  identity. A failed upstream confirmation is `outcome_unknown`, never success.
   Do not infer refresh-token-family or authorization-server session state from
   access-token expiry.
 - Derive the current connection identifier from the validated principal, never

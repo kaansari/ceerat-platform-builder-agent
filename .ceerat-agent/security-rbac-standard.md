@@ -50,6 +50,17 @@ create/link the CEERAT user and customer, store the identity mapping, and avoid
 direct SQL from the gateway. Until that workflow exists, manual linking is a
 development-only operation.
 
+For MCP connection logout, bind local state to the validated authorization
+server session claim plus client ID, not the access-token `jti`; `jti` changes
+on refresh. Revoke locally before calling the authorization server, and report
+`OUTCOME_UNKNOWN` if upstream deletion cannot be confirmed. Store only the
+opaque session identifier, never access/refresh tokens or authorization codes.
+Keycloak's supported session-delete API removes a user/offline session rather
+than one child client session, so public tools must disclose that clients
+sharing that SSO session may also be signed out. A service revoker must be
+service-account-only, secret-managed, and limited to the minimum supported
+session-management permission; never grant `realm-admin`.
+
 ## gRPC Security Flow
 
 Protected gRPC calls flow through:
