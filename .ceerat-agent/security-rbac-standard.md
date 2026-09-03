@@ -19,8 +19,10 @@ validated rules:
    refreshes the credential; every protected MCP call sends the access token in
    the HTTP `Authorization` header.
 4. Validate RS256 signature through JWKS, issuer, audience, expiry/not-before,
-   configured client claim, configured CEERAT identity claim and scopes. Never
-   trust identity, role, scope, customer ID or grant ID from tool arguments.
+   configured client claim against an explicit allowed-client list, configured
+   CEERAT identity claim and scopes. Audience validation does not replace the
+   client allowlist. Never trust identity, role, scope, customer ID or grant ID
+   from tool arguments.
 5. Keep credential entry and consent on a CEERAT-controlled authorization page.
    Passwords, MFA/recovery values, codes, cookies, access/refresh tokens and
    client secrets must not enter prompts, tool arguments, structured results,

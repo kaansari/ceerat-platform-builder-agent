@@ -119,7 +119,8 @@ architecture rules when a service change is exposed to an external model:
 - OAuth obtains the access token; protected MCP requests still use
   `Authorization: Bearer <token>`.
 - The gateway validates signature/JWKS, issuer, audience/resource, expiry,
-  client, configured CEERAT identity claim and scopes before any gRPC call.
+  configured CEERAT identity claim, per-tool scopes, and the token's client
+  claim against an explicit allowlist before any gRPC call.
 - Identity and ownership IDs come from the validated principal. External tool
   inputs must not accept `user_id`, `customer_id`, role or scopes for self-service
   operations.

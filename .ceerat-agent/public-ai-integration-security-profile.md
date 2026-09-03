@@ -26,9 +26,11 @@ business validation, and persistence.
 
 - Publish RFC 9728-compatible OAuth Protected Resource Metadata and standard
   authorization-server or OIDC discovery.
-- Use authorization code with PKCE `S256` for public user-delegated clients.
-- Pre-registered public clients use token endpoint authentication method
-  `none`; never embed a client secret in ChatGPT, Codex, a browser, or a prompt.
+- Use authorization code with PKCE `S256` for user-delegated clients.
+- Hosted ChatGPT may use a predefined confidential client whose secret is held
+  only in ChatGPT's protected app configuration. Native Codex uses a public
+  client with token endpoint authentication method `none`. Never place either
+  client's credentials or tokens in a prompt, tool result, log, or repository.
 - Match resource indicator, token audience, issuer, and redirect URI exactly.
 - Allow only registered redirect URIs. Support the client-specific callback
   displayed by ChatGPT when stable callback discovery is unavailable.
@@ -45,7 +47,7 @@ Before dispatching any protected tool, the gateway must validate:
 - exact trusted issuer;
 - expected MCP resource audience;
 - expiry and not-before timestamps with bounded clock skew;
-- authorized client claim such as `azp`;
+- authorized client claim such as `azp`, matched against an explicit allowlist;
 - stable CEERAT identity mapping claim;
 - every scope required by the selected operation.
 
@@ -53,6 +55,10 @@ Identity, role, scope, user ID, customer ID, connection ID ownership, and grant
 authority must never be accepted from model-controlled arguments. A fallback
 when `sub` is absent is permitted only when it uses a separately configured,
 validated, stable CEERAT identity claim.
+
+The client allowlist is independent of issuer and audience checks. During a
+bounded migration it may include a named rollback client; remove that ID when
+the rollback client is disabled.
 
 ## Identity lifecycle
 
