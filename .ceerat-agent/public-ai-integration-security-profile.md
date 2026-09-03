@@ -79,6 +79,13 @@ the rollback client is disabled.
   minimum supported Keycloak permission and document any residual breadth of a
   built-in role.
 
+The CEERAT Phase 1 live test on 2026-09-03 confirmed this sequence: a mismatched
+revoker credential produced fail-closed `OUTCOME_UNKNOWN`; coordinated secret
+rotation allowed confirmed Keycloak session deletion; and the next ChatGPT
+request required reconnection. Preserve independent secrets for the hosted
+ChatGPT client and gateway revoker, and preserve the ChatGPT secret during
+idempotent client reconciliation.
+
 ## Identity lifecycle
 
 OAuth login and CEERAT registration are distinct operations. A production

@@ -149,6 +149,8 @@ architecture rules when a service change is exposed to an external model:
   connection. Confirmed revocation denies locally first and then deletes the
   matching Keycloak normal/offline session through an isolated service
   identity. A failed upstream confirmation is `outcome_unknown`, never success.
+  Live acceptance requires the host to demand reconnection on the next
+  protected request; a local denylist result alone is insufficient evidence.
   Do not infer refresh-token-family or authorization-server session state from
   access-token expiry.
 - Derive the current connection identifier from the validated principal, never
