@@ -302,6 +302,8 @@ def _app_matches(inventories: Dict[str, Any], request: str) -> List[InventoryMat
     request_words = set(_request_terms(request))
     matches: List[InventoryMatch] = []
     for app_item in inventories["apps"].get("browser_apps", []) + inventories["apps"].get("ai_apps", []):
+        if not _is_active_app_inventory(app_item):
+            continue
         haystack = set(_words(" ".join([
             app_item.get("name", ""),
             app_item.get("type", ""),
@@ -1905,6 +1907,10 @@ def _app_items(inventories: Dict[str, Any]) -> List[Dict[str, Any]]:
     return inventories["apps"].get("browser_apps", []) + inventories["apps"].get("ai_apps", [])
 
 
+def _is_active_app_inventory(item: Dict[str, Any]) -> bool:
+    return item.get("lifecycle", "active") == "active"
+
+
 def _find_app(inventories: Dict[str, Any], target: str) -> Optional[Dict[str, Any]]:
     target_words = set(_words(target))
     for app_item in _app_items(inventories):
@@ -1933,7 +1939,9 @@ def _app_route_source(inventories: Dict[str, Any], app_name: str) -> str:
 def _app_context_payload(project_root: Path, target: Optional[str]) -> Dict[str, Any]:
     inventories = _load_inventories(project_root)
     apps = _app_items(inventories)
-    selected = [_find_app(inventories, target)] if target else apps
+    selected = [_find_app(inventories, target)] if target else [
+        app_item for app_item in apps if _is_active_app_inventory(app_item)
+    ]
     selected = [app_item for app_item in selected if app_item]
     return {
         "scope": "apps",
@@ -1946,6 +1954,7 @@ def _app_context_payload(project_root: Path, target: Optional[str]) -> Dict[str,
                 "name": app_item.get("name", ""),
                 "path": app_item.get("path", ""),
                 "type": app_item.get("type", ""),
+                "lifecycle": app_item.get("lifecycle", "active"),
                 "default_port": app_item.get("default_port", ""),
                 "session_cookie": app_item.get("session_cookie", ""),
                 "dependencies": app_item.get("dependencies", []),
@@ -1959,7 +1968,10 @@ def _app_context_payload(project_root: Path, target: Optional[str]) -> Dict[str,
             }
             for app_item in selected
         ],
-        "active_chat_surfaces": inventories["apps"].get("active_chat_surfaces", []),
+        "active_chat_surfaces": [
+            surface for surface in inventories["apps"].get("active_chat_surfaces", [])
+            if _is_active_app_inventory(surface)
+        ],
         "rules": inventories["apps"].get("inventory_rules", []),
         "checklist": inventories["apps"].get("builder_checklist_before_new_app_surface", []),
     }
@@ -2026,6 +2038,8 @@ def _app_match_payload(project_root: Path, request: str) -> Dict[str, Any]:
             })
     chat_matches = []
     for surface in inventories["apps"].get("active_chat_surfaces", []):
+        if not _is_active_app_inventory(surface):
+            continue
         shared = sorted(terms & set(_words(" ".join(str(value) for value in surface.values()))))
         if shared:
             chat_matches.append({"matched_terms": shared, **surface})
@@ -2121,7 +2135,10 @@ def _app_check_payload(project_root: Path) -> Dict[str, Any]:
                 })
 
     tool_source_path = workspace / "apps-repo" / "ai" / "ceerat-agent-service" / "internal" / "agent" / "tools.go"
-    ai_app = next((item for item in inventories["apps"].get("ai_apps", []) if item.get("name") == "ceerat-agent-service"), None)
+    ai_app = next((
+        item for item in inventories["apps"].get("ai_apps", [])
+        if item.get("name") == "ceerat-agent-service" and _is_active_app_inventory(item)
+    ), None)
     if tool_source_path.is_file() and ai_app is not None:
         actual_profiles = _tool_profiles_from_source(tool_source_path.read_text(encoding="utf-8"))
         inventory_profiles = {
@@ -2145,7 +2162,7 @@ def _app_check_payload(project_root: Path) -> Dict[str, Any]:
         "checked": [
             "duplicate routes inside each app inventory entry",
             "template/static/chat asset inventory paths exist on disk",
-            "agent and customer AI tool definitions match app inventory",
+            "active agent and customer AI tool definitions match app inventory",
         ],
     }
 

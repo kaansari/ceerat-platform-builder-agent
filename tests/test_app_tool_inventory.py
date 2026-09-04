@@ -1,6 +1,6 @@
 import unittest
 
-from ceerat_builder.main import _tool_profiles_from_source
+from ceerat_builder.main import _is_active_app_inventory, _tool_profiles_from_source
 
 
 class AppToolInventoryTests(unittest.TestCase):
@@ -21,6 +21,11 @@ func (r *ToolRunner) Run() {}
 
     def test_returns_empty_profiles_for_unrecognized_source(self) -> None:
         self.assertEqual(_tool_profiles_from_source("package agent"), {"agent": [], "customer": []})
+
+    def test_inventory_lifecycle_defaults_active_and_honors_deprecated(self) -> None:
+        self.assertTrue(_is_active_app_inventory({}))
+        self.assertTrue(_is_active_app_inventory({"lifecycle": "active"}))
+        self.assertFalse(_is_active_app_inventory({"lifecycle": "deprecated"}))
 
 
 if __name__ == "__main__":

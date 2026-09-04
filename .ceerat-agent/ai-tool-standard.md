@@ -154,7 +154,10 @@ list_my_applications
 get_my_application
 ```
 
-This profile currently exposes 25 tools. These lists must match `toolDefinitions()` and `customerToolDefinitions()` in `internal/agent/tools.go` and the corresponding `tools` and `customer_tools` arrays in `apps-repo/docs/app-surface-inventory.json`.
+This deprecated profile historically exposed 25 tools. Its inventory is kept
+only as migration/reference evidence and is excluded from active public-tool
+consistency gates. New public operations belong to the MCP gateway inventory;
+do not restore legacy entries merely to satisfy drift checks.
 
 The agent-facing browser UI remains in:
 
