@@ -192,6 +192,12 @@ The consolidated normative checklist is
 service plan introduces a public MCP gateway, OAuth-delegated AI client, or
 external-to-internal identity exchange.
 
+The 2026-09-04 Phase 2 OAuth validation added one reusable rule: optional
+domain scopes must be synchronized across protected-resource metadata,
+authorization-client assignment, consent text, and the AI app's requested
+scope set. Existing grants require a fresh authorization and must be verified
+from decoded scope names without retaining tokens.
+
 Lightweight app discovery tools:
 
 ```bash

@@ -36,6 +36,13 @@ business validation, and persistence.
   displayed by ChatGPT when stable callback discovery is unavailable.
 - Grant only documented scopes. `offline_access` must be explicitly allowed
   when requested and refresh tokens must remain outside model context.
+- Keep protected-resource `scopes_supported`, authorization-client optional
+  assignments, human consent text, and the app's requested scope list in sync.
+  Adding an optional scope does not upgrade an existing grant: deploy metadata
+  first, then require a fresh authorization and verify only decoded scope names.
+- Keep domain scopes narrow and composable. A catalog-read or self-cart scope
+  grants an operation category only; it never grants ownership, price,
+  inventory, checkout, tenant-selection, or administrative authority.
 - Require HTTPS for all public metadata, authorization, token, JWKS, and MCP
   endpoints.
 
