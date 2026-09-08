@@ -198,6 +198,11 @@ authorization-client assignment, consent text, and the AI app's requested
 scope set. Existing grants require a fresh authorization and must be verified
 from decoded scope names without retaining tokens.
 
+The 2026-09-08 product-catalog validation established the public catalog-read
+pattern: strict bounded MCP schemas, narrow domain scope, private authenticated
+gRPC, service-owned visibility/pricing, customer-safe projection, read-only
+annotations, and correlated redacted auditing. See `ai-tool-standard.md`.
+
 Lightweight app discovery tools:
 
 ```bash

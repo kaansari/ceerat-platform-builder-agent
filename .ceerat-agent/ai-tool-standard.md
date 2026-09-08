@@ -401,7 +401,14 @@ Current input behavior:
 - `create_customer` requires `first_name` and `last_name`; address, email, and phone are optional.
 - `list_customers` takes no arguments.
 - `list_services` accepts optional `category` and `type`.
-- Product catalog RPCs exist under `service.ServiceManager`, but there is not currently a product-specific AI tool. If one is added later, customer-facing reads must only expose active products and mutations must remain admin/agent-only.
+- Public product catalog reads use the validated `products_list` and
+  `products_get` MCP tools backed by private authenticated
+  `service.ServiceManager/ListProducts` and `GetProduct`. Require the narrow
+  `ceerat.products.read` scope, force customer-visible active products, bound
+  pages/filters before dispatch, conceal inactive detail as not found, and omit
+  inventory counts, storage fields, supplier/cost data, and internal errors.
+  Product domain metadata is discovery-only and never authorization. Catalog
+  mutations remain admin/agent-only and are not exposed through these tools.
 - `assign_service_to_customer` requires `customer_id` and `service_id`; `status` defaults to `ordered`; empty or `today` `ordered_at` becomes the current local date.
 - `create_order` requires `customer_id` and `services`; service items require `service_id` and may include quantity, agent name, schedule/start/due dates.
 - `list_orders` accepts optional `customer_id` and `status`.
