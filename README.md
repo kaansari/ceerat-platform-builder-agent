@@ -227,6 +227,14 @@ checkout/update/cancel requests, a self-scoped operation-status lookup, and a
 customer-safe order projection. Removed float fields/tags remain reserved and
 no hard-delete or old/new dual contract is permitted.
 
+PR 10 implements the service-side transaction boundary. The order-owning gRPC
+service—not MCP—locks the customer cart/order, verifies versions and expiring
+pricing/state fingerprints, calculates exact money, and persists the business
+mutation with its idempotency outcome. Operation status is subject-scoped and
+survives restarts. Cancellation is a state transition; paid/terminal orders are
+never deleted. Migration and preflight must precede the binary, and order MCP
+tools remain unadvertised until that dependency chain is live.
+
 Lightweight app discovery tools:
 
 ```bash

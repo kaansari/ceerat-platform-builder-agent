@@ -359,3 +359,11 @@ identity claims, missing/expired/wrong-audience tokens, scope denial,
 anti-enumerating OAuth challenges, structured error redaction, private gRPC
 RBAC/ownership, confirmation enforcement, connection revocation, and at least
 two real MCP clients. The Phase 1 baseline clients are Codex and ChatGPT.
+# Self-order authorization
+
+Every `MyOrder` query must include subject-derived customer and user predicates.
+Preview is read-only; checkout/update/cancel require their distinct OAuth scope,
+an authenticated customer role, version/fingerprint preconditions, and a scoped
+idempotency key. Cross-customer IDs return the same not-found shape. Audit only
+safe IDs, versions, operation state/kind, changed field names, and request ID;
+never log notes, addresses, raw keys, fingerprints, tokens, or database text.

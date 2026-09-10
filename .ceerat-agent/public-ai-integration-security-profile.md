@@ -22,6 +22,13 @@ OAuth tokens terminate at the gateway and must not be reused as internal
 service JWTs. Backend services remain authoritative for RBAC, record ownership,
 business validation, and persistence.
 
+For consequential commerce tools, expose a read-only quote/preview followed by
+a confirmation bound to an expiring server fingerprint, optimistic version, and
+idempotency key. Reconnect reconciliation reads a durable subject-scoped
+operation outcome and must never repeat the mutation. Keep the public tool
+disabled until schema migration, preflight, matching private-gRPC binary, and a
+private smoke test are all verified live.
+
 ## OAuth and client requirements
 
 - Publish RFC 9728-compatible OAuth Protected Resource Metadata and standard

@@ -57,6 +57,13 @@ Local cross-repo Go development should use a parent-level `go.work`. Missing wor
 
 Ceerat is organized around one core rule: apps and AI agents do not write directly to the OLTP database. They call backend services. Backend services own persistence, migrations, business rules, security, RBAC, and logging.
 
+Customer commerce follows that rule end to end: MCP is a translation boundary,
+private `order.OrderManager` is the sole order writer, and PostgreSQL is the
+atomicity boundary for checkout, order changes, cancellation, payment-session
+invalidation, and durable operation outcomes. Exact money and customer/address/
+pricing snapshots are service-owned. No app, gateway, compatibility service, or
+parallel schema may calculate or persist an order.
+
 ```text
 Users / Admins
      |

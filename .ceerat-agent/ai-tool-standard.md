@@ -771,3 +771,11 @@ discount_experiment
 operational_bottleneck
 executive_summary
 ```
+# Order-tool transaction boundary
+
+Order MCP tools may validate presentation schema and translate errors, but they
+must not price, choose an owner, access PostgreSQL, or infer success after an
+uncertain response. Quote/preview responses provide the version, safe preview,
+fingerprint, and expiry required for explicit confirmation. Operation-status
+tools reconcile by kind plus idempotency key. Advertise these tools only after
+the matching order schema and private service are live.

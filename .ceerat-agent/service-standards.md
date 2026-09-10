@@ -976,3 +976,13 @@ After a service change is implemented, do not immediately rewrite builder-agent 
 Only then update `.ceerat-agent` docs when the change establishes a reusable platform rule, ownership boundary, security rule, or cookbook pattern.
 
 Use `ceerat-builder docs <scope> --output json` to locate the relevant builder, service, inventory, and app documents.
+# Transactional self-order standard
+
+For customer checkout/order mutation, derive ownership from verified identity
+and keep pricing, row locks, version checks, immutable snapshots, cart
+consumption, payment-placeholder invalidation, and durable idempotency outcomes
+inside the owning service transaction. Bind confirmation to a short-lived
+fingerprint over exact server inputs. Retain outcomes beyond client retry and
+operator reconciliation windows; cleanup may never remove `in_progress` or
+`outcome_unknown`. Do not introduce float money, hard-delete cancellation,
+gateway pricing, dual contracts, compatibility columns, or fallback reads.
