@@ -214,6 +214,12 @@ must still enforce the exact operation shape. See `architecture.md`,
 `public-ai-integration-security-profile.md`. Deployment evidence remains in
 `infra/docs/public-agent-phase-2-milestone.md`.
 
+The Phase 2 order authorization profile extends that boundary with separate
+optional scopes for order reads, confirmed cart checkout/order creation, and
+eligible-order mutation. Protected-resource metadata, Keycloak client
+assignments, consent text, and requested scopes must move together; service-side
+subject ownership and order-state enforcement remain mandatory.
+
 Lightweight app discovery tools:
 
 ```bash

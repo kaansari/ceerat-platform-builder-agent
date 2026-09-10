@@ -43,6 +43,10 @@ validated rules:
 10. Public errors reveal only stable OAuth/CEERAT codes, required scopes and
     safe recovery actions. Log the detailed validation reason server-side with
     request/tool correlation, never the credential.
+11. Split domain authorization by materially different operation classes. In
+    particular, order read, cart checkout/order creation, and eligible-order
+    mutation use distinct optional scopes; none replaces subject-derived
+    ownership, state-machine, confirmation, idempotency, or downstream RBAC.
 
 Authentication success at the authorization server does not establish a
 CEERAT customer. Registration provisioning must atomically or recoverably

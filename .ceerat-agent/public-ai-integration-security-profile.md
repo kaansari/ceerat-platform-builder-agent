@@ -40,9 +40,11 @@ business validation, and persistence.
   assignments, human consent text, and the app's requested scope list in sync.
   Adding an optional scope does not upgrade an existing grant: deploy metadata
   first, then require a fresh authorization and verify only decoded scope names.
-- Keep domain scopes narrow and composable. A catalog-read or self-cart scope
-  grants an operation category only; it never grants ownership, price,
-  inventory, checkout, tenant-selection, or administrative authority.
+- Keep domain scopes narrow and composable. Separate read, create/checkout,
+  and post-creation mutation authority when their risk differs. A catalog,
+  self-cart, or self-order scope grants an operation category only; it never
+  grants ownership, price, inventory, state-transition, tenant-selection, or
+  administrative authority.
 - Require HTTPS for all public metadata, authorization, token, JWKS, and MCP
   endpoints.
 
