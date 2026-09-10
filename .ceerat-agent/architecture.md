@@ -227,9 +227,17 @@ Validated ownership rule:
   migrations before the dependent binary becomes live. Production startup
   preflight fails closed when required constraints or indexes are absent.
 - Checkout finalization, cart pricing quotes, order-level coupons, shipping methods, and tax rules belong to `order.OrderManager`. Catalog/item discounts remain owned by `service.ServiceManager`.
+- Customer order reads and writes use only self-scoped `*MyOrder*` contracts.
+  Order responses use a customer-safe projection without customer/user IDs,
+  address objects, inventory, or nested backend product records. Preview,
+  confirmation, and operation-status contracts are distinct; no hard-delete or
+  compatibility order RPC exists.
+- Commerce money crossing product, cart, order, pricing, or payment contracts
+  uses signed 64-bit minor units plus an allowlisted ISO currency. Replaced
+  floating-point fields and tags are reserved and are never served in parallel.
 - Customer shipping and billing addresses belong to `customer.CustomerService`. `UpdateMyCustomerProfile` is customer-owned and must derive identity from JWT context.
 - Shipping and billing addresses are explicit new-system state. Quote/order creation requires complete addresses; order creation snapshots both. Tax jurisdiction uses shipping only, and repricing uses the immutable order shipping snapshot.
-- Order pricing is `subtotal - order discount + shipping + tax`. The backend is authoritative for catalog-effective subtotal, coupon eligibility, shipping eligibility, tax selection, cent rounding, and final total.
+- Order pricing is `subtotal - order discount + shipping + tax`. The backend is authoritative for catalog-effective subtotal, coupon eligibility, shipping eligibility, tax selection, integer-minor-unit rounding, and final total.
 - Default shipping options are Free ($0), Standard ($5), Three day ($10), and Next day ($20). Default tax is 9 percent only when no configured state/country tax rule matches.
 - Order coupon codes are `OrderPricingRule` records with `kind=discount` and a non-empty code. Coupon validation is case-insensitive and may enforce schedule, region, minimum subtotal, and priority.
 - Do not add backward-compatibility fallbacks for missing addresses, missing order address snapshots, or stale shipping method IDs; reject invalid state.

@@ -214,11 +214,18 @@ must still enforce the exact operation shape. See `architecture.md`,
 `public-ai-integration-security-profile.md`. Deployment evidence remains in
 `infra/docs/public-agent-phase-2-milestone.md`.
 
-The Phase 2 order authorization profile extends that boundary with separate
+The Phase 2 order authorization profile, live-validated with ChatGPT on
+2026-09-10, extends that boundary with separate
 optional scopes for order reads, confirmed cart checkout/order creation, and
 eligible-order mutation. Protected-resource metadata, Keycloak client
 assignments, consent text, and requested scopes must move together; service-side
 subject ownership and order-state enforcement remain mandatory.
+
+PR 09 establishes the canonical contract shape behind those scopes: exact
+minor-unit money, enum lifecycle values, versioned and fingerprint-bound
+checkout/update/cancel requests, a self-scoped operation-status lookup, and a
+customer-safe order projection. Removed float fields/tags remain reserved and
+no hard-delete or old/new dual contract is permitted.
 
 Lightweight app discovery tools:
 

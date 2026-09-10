@@ -685,6 +685,11 @@ order.OrderManager/QuoteMyCartPricing
 order.OrderManager/CheckoutMyCart
 order.OrderManager/GetMyOrder
 order.OrderManager/ListMyOrders
+order.OrderManager/PreviewMyOrderUpdate
+order.OrderManager/UpdateMyOrder
+order.OrderManager/PreviewMyOrderCancellation
+order.OrderManager/CancelMyOrder
+order.OrderManager/GetMyOrderOperationStatus
 ```
 
 Agent/admin pricing methods:
@@ -714,7 +719,15 @@ Address and total rules:
 - Tax jurisdiction comes strictly from shipping address.
 - Orders snapshot shipping and billing addresses plus discount, shipping, tax, labels/rates, and selected method/code.
 - Repricing uses the order shipping snapshot, not mutable customer/profile state.
-- Calculate `subtotal - discount + shipping + tax` and round money to cents.
+- Calculate `subtotal - discount + shipping + tax` using checked integer minor
+  units in one allowlisted currency. Rates use integer basis points. Never use
+  binary floating point or gateway conversion for commerce money.
+- Quote/update previews return opaque short-lived pricing fingerprints; cancel
+  previews return an opaque state precondition fingerprint. Confirmation must
+  match the preview, authenticated subject, current resource version, and
+  idempotency record or fail before mutation.
+- `GetMyOrderOperationStatus` accepts only a closed operation kind plus bounded
+  idempotency key and returns no raw request hash or database state.
 - Reject missing addresses, missing order address snapshots, invalid coupons, and stale shipping IDs. Do not add legacy-state remapping.
 
 Checkout tests should cover:

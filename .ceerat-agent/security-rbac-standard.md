@@ -237,6 +237,11 @@ Customer default permissions include:
 /order.OrderManager/CheckoutMyCart
 /order.OrderManager/GetMyOrder
 /order.OrderManager/ListMyOrders
+/order.OrderManager/PreviewMyOrderUpdate
+/order.OrderManager/UpdateMyOrder
+/order.OrderManager/PreviewMyOrderCancellation
+/order.OrderManager/CancelMyOrder
+/order.OrderManager/GetMyOrderOperationStatus
 ```
 
 Agent default permissions include:
@@ -252,6 +257,10 @@ Agent default permissions include:
 Security rules:
 
 - Customer quote/checkout accepts no trusted customer id, tax state, address, unit price, discount, shipping charge, tax, or total from the browser.
+- Customer order requests never accept identity, ownership, role, scope,
+  lifecycle status, payment status, line items, or monetary totals. Identity is
+  derived from authenticated gRPC context on every preview, confirmation, and
+  operation-status call.
 - Tax jurisdiction is resolved from the authenticated customer's explicit shipping address or the immutable order shipping snapshot.
 - Billing address is persisted/snapshotted but never used as tax jurisdiction.
 - Coupon eligibility and shipping-method availability are recalculated server-side.
