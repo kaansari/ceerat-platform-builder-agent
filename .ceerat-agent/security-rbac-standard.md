@@ -171,7 +171,11 @@ Examples:
 - Customer external ATS application submissions must resolve `customer_id` from authenticated context, require explicit confirmation, validate resume ownership, derive any internal skill profile from that resume, and store only sanitized provider status/audit summaries.
 - Customer career calendar methods are protected self-service methods under `calendar.CalendarService`. They belong in `KnownGRPCMethods` and customer default role permissions, but never in `DefaultPublicMethods`.
 - Customer service assignments are filtered or denied by owner.
-- Customer cart access resolves the authenticated user to its own customer profile and denies another requested `customer_id`.
+- Customer cart access uses only self-scoped `*MyCart*` contracts, resolves the
+  authenticated user to its own customer profile, and exposes no customer/user
+  selector to public MCP clients. The private gRPC service repeats ownership,
+  product visibility, version, and idempotency enforcement independently of the
+  gateway.
 - Order reads and writes are scoped by authenticated user id.
 - Customer address updates derive customer identity from JWT and may update only the caller's shipping and billing addresses.
 - Customer cart quote/checkout derives customer, cart, shipping address, billing address, tax jurisdiction, prices, and totals server-side.

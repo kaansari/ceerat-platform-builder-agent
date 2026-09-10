@@ -136,6 +136,14 @@ blocker until removed.
   preview can be produced.
 - Require explicit `confirmed: true` and a short-lived, user-bound,
   operation-bound preparation identifier for consequential execution.
+- Validate published schemas with every supported hosted AI client. Avoid
+  contradictory outer/branch `additionalProperties` composition. If a client
+  cannot safely consume a top-level polymorphic input, use separate tools or a
+  flat closed schema plus strict runtime argument-shape validation; do not
+  weaken ownership, confirmation, or unknown-field rejection.
+- Refresh/version the registered hosted-client app after schema changes and
+  verify the imported definition. Starting a new conversation is not a schema
+  refresh guarantee.
 - Require idempotency keys for retryable writes and retain results long enough
   to cover realistic client retry windows.
 - Apply request-size, rate, concurrency, and downstream timeout limits.

@@ -203,6 +203,17 @@ pattern: strict bounded MCP schemas, narrow domain scope, private authenticated
 gRPC, service-owned visibility/pricing, customer-safe projection, read-only
 annotations, and correlated redacted auditing. See `ai-tool-standard.md`.
 
+The 2026-09-09 Phase 2 product/cart milestone validated the full customer-owned
+cart pattern through ChatGPT: identity-derived `*MyCart*` gRPC contracts,
+optimistic versions, idempotent mutations, bound destructive confirmation,
+explicit PostgreSQL migration/preflight before deployment, and model-client
+schema compatibility. Polymorphic top-level tool inputs are avoided when a
+supported client wrapper cannot validate them consistently; runtime validation
+must still enforce the exact operation shape. See `architecture.md`,
+`service-standards.md`, `security-rbac-standard.md`, `ai-tool-standard.md`, and
+`public-ai-integration-security-profile.md`. Deployment evidence remains in
+`infra/docs/public-agent-phase-2-milestone.md`.
+
 Lightweight app discovery tools:
 
 ```bash

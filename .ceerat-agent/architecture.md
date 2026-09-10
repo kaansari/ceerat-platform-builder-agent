@@ -218,6 +218,14 @@ Validated ownership rule:
 
 - Product catalog and Cart capabilities belong to `service.ServiceManager` unless a future inventory shows a stronger owner.
 - Cart is a customer-owned workflow over service/product catalog items. Customer callers are resolved to their own `customers.user_id` profile and cannot choose another `customer_id`.
+- Public cart tools call only authenticated private `GetMyCart`,
+  `AddMyCartItem`, `UpdateMyCartItem`, `RemoveMyCartItem`, and `ClearMyCart`
+  contracts. The service independently enforces ownership, active merchandise,
+  prices, totals, versions, and idempotency; the MCP gateway is not the trust
+  boundary for these rules.
+- Schema-dependent service releases apply and verify explicit PostgreSQL
+  migrations before the dependent binary becomes live. Production startup
+  preflight fails closed when required constraints or indexes are absent.
 - Checkout finalization, cart pricing quotes, order-level coupons, shipping methods, and tax rules belong to `order.OrderManager`. Catalog/item discounts remain owned by `service.ServiceManager`.
 - Customer shipping and billing addresses belong to `customer.CustomerService`. `UpdateMyCustomerProfile` is customer-owned and must derive identity from JWT context.
 - Shipping and billing addresses are explicit new-system state. Quote/order creation requires complete addresses; order creation snapshots both. Tax jurisdiction uses shipping only, and repricing uses the immutable order shipping snapshot.

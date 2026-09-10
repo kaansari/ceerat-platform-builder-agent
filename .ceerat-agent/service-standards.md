@@ -649,11 +649,11 @@ Product catalog methods are owned by `service.ServiceManager`. Customer role can
 Cart methods are owned by `service.ServiceManager`:
 
 ```text
-service.ServiceManager/GetCart
-service.ServiceManager/AddCartItem
-service.ServiceManager/UpdateCartItem
-service.ServiceManager/RemoveCartItem
-service.ServiceManager/ClearCart
+service.ServiceManager/GetMyCart
+service.ServiceManager/AddMyCartItem
+service.ServiceManager/UpdateMyCartItem
+service.ServiceManager/RemoveMyCartItem
+service.ServiceManager/ClearMyCart
 ```
 
 Cart smoke tests should cover:
@@ -663,7 +663,16 @@ Cart smoke tests should cover:
 - Customer can add active product items and service items.
 - Customer cannot add inactive products.
 - Update, remove, and clear recalculate totals.
-- `carts` and `cart_items` migrate successfully against PostgreSQL.
+- Mutations require optimistic cart versioning and bounded idempotency keys;
+  clear uses a bound preparation and explicit confirmation at the public tool
+  boundary.
+- `carts`, `cart_items`, and cart-idempotency constraints/indexes migrate
+  successfully against PostgreSQL.
+- Production applies the explicit forward migration and its preflight before
+  deploying code that requires named constraints or indexes. ORM auto-migration
+  is not the sole production migration mechanism. A failed preflight must stop
+  the new service version; dependency callers must report `not_started` when no
+  downstream mutation began.
 
 ## Order Pricing, Tax, Shipping, And Coupon Standard
 

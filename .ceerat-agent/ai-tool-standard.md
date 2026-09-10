@@ -10,6 +10,20 @@ tools with nested objects, and protected tools must all reject undeclared
 model-controlled fields. Reserved MCP protocol metadata such as `params._meta`
 is decoded separately and must not be merged into business arguments.
 
+Keep public tool input schemas compatible with the validated MCP clients. Do
+not combine an outer `additionalProperties: false` with branch-only properties:
+the outer object will reject otherwise valid `oneOf` fields. When a supported
+client wrapper cannot reliably validate a polymorphic top-level input, publish
+a flat closed property set and enforce the exact mutually exclusive argument
+shapes at runtime, or expose separate prepare/execute tools. Client
+compatibility never justifies accepting unknown fields or weakening server-side
+confirmation checks.
+
+Treat a registered AI app version as a schema snapshot. After changing a tool
+schema, verify the live `tools/list` response and refresh/version the ChatGPT or
+other hosted-client app definition before acceptance testing. A new chat alone
+does not prove the registered app imported the new schema.
+
 Use a stable safe error for rejected fields:
 
 ```text
@@ -409,6 +423,14 @@ Current input behavior:
   inventory counts, storage fields, supplier/cost data, and internal errors.
   Product domain metadata is discovery-only and never authorization. Catalog
   mutations remain admin/agent-only and are not exposed through these tools.
+- Public self-cart tools use `products_cart_get`,
+  `products_cart_add_item`, `products_cart_update_item`,
+  `products_cart_remove_item`, and `products_cart_clear`, backed only by the
+  private authenticated `service.ServiceManager/*MyCart*` methods. Never accept
+  a customer/user selector, trusted price, total, inventory override, role, or
+  scope from the model. Require a current cart version and idempotency key for
+  mutations. Clear requires a short-lived preparation bound to user, OAuth
+  client, operation, and version followed by explicit confirmation.
 - `assign_service_to_customer` requires `customer_id` and `service_id`; `status` defaults to `ordered`; empty or `today` `ordered_at` becomes the current local date.
 - `create_order` requires `customer_id` and `services`; service items require `service_id` and may include quantity, agent name, schedule/start/due dates.
 - `list_orders` accepts optional `customer_id` and `status`.
