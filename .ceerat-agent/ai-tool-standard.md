@@ -440,7 +440,7 @@ Current input behavior:
 - `remove_service_from_order` requires `order_id` and `order_service_id`.
 - Tax, shipping, coupon-rule management, cart quote, and checkout currently have no AI tools. Do not make pricing methods public or emulate their calculations inside an AI tool.
 - If commerce tools are added, customer quote/checkout must use `QuoteMyCartPricing`/`CheckoutMyCart`, while pricing-rule mutation and `RepriceOrder` remain agent/admin-only.
-- AI tools must not invent or supply trusted tax state, shipping/billing addresses, coupon amount, shipping amount, tax, or final total. Those values remain customer-profile/order-service state.
+- AI tools must not invent trusted tax state, shipping/billing addresses, coupon amount, shipping amount, tax, or final total. An authenticated user may explicitly supply their own shipping/billing address through the self-scoped customer-profile update contract, but the tool must use a closed address schema, resource-version precondition, preparation preview, and explicit confirmation. Pricing tools consume the resulting server-owned profile state and never accept an address inline with quote or checkout.
 - `get_current_user` takes no arguments and returns sanitized session user fields only.
 - `create_company` requires `name`; website, industry, description, location, source, source URL, and external ID are optional. Backend duplicate validation rejects exact or highly similar global company names.
 - `list_companies` accepts optional `keyword` and `source`. Company keyword search should cover practical lookup fields such as name, website, description, industry, location, source, external ID, and source URL. For "all companies", do not pass generic keywords such as `all`, `companies`, `career`, or `domain`.
