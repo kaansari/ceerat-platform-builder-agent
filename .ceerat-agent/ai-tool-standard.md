@@ -787,3 +787,13 @@ and-filter-bound stable page tokens and ownership predicates. The public adapter
 projects exact money and customer-safe snapshots, conceals foreign resources as
 not found, marks every read failure `not_started`, and logs only correlated,
 redacted metadata with hashed resource IDs.
+
+Checkout tools must separate quote, preparation, confirmation, and operation
+status. Quote is service-owned and non-mutating. Durable preparation binds the
+authenticated subject/client, normalized choices, cart/resource version,
+idempotency key, exact reviewed result, server fingerprint, digest, and expiry.
+Confirmation accepts no mutable content beyond an opaque preparation ID and
+explicit consent; it atomically becomes single-dispatch before calling private
+gRPC. Deterministic no-effect rejection is `not_started`. Any unconfirmed
+post-dispatch result is `outcome_unknown` and points to a subject-scoped status
+read rather than checkout retry.

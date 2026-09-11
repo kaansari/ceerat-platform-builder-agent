@@ -245,6 +245,15 @@ service. Audit events identify tool, domain, scope, downstream method, outcome,
 and a hashed resource identifier without notes, filters, raw IDs, or dependency
 details.
 
+PR 12 establishes the public AI checkout pattern: quote is service-owned and
+read-only; preparation durably binds identity/client, normalized choices, cart
+version, idempotency, exact quote/fingerprint, digest, and expiry; confirmation
+accepts only the opaque preparation plus explicit consent and atomically becomes
+single-dispatch. Post-dispatch uncertainty must return a reconciliation handle
+for a subject-scoped status read, never a blind-retry instruction. Generic order
+creation, model-authored lines/prices, gateway pricing, and legacy/parallel
+paths are prohibited.
+
 Lightweight app discovery tools:
 
 ```bash
