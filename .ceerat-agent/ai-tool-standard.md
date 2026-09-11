@@ -779,3 +779,11 @@ uncertain response. Quote/preview responses provide the version, safe preview,
 fingerprint, and expiry required for explicit confirmation. Operation-status
 tools reconcile by kind plus idempotency key. Advertise these tools only after
 the matching order schema and private service are live.
+
+Order-read tools use a distinct narrow read scope and only self-scoped gRPC
+methods. Their closed inputs contain bounded pagination/status fields or one
+opaque order ID and never accept identity selectors. The service owns subject-
+and-filter-bound stable page tokens and ownership predicates. The public adapter
+projects exact money and customer-safe snapshots, conceals foreign resources as
+not found, marks every read failure `not_started`, and logs only correlated,
+redacted metadata with hashed resource IDs.

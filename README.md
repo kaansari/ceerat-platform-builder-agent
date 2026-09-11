@@ -235,6 +235,16 @@ survives restarts. Cancellation is a state transition; paid/terminal orders are
 never deleted. Migration and preflight must precede the binary, and order MCP
 tools remain unadvertised until that dependency chain is live.
 
+PR 11 establishes the reusable customer order-read adapter pattern. Public MCP
+inputs are closed, bounded, identity-free schemas; OAuth requires the narrow
+order-read scope; the adapter calls only self-scoped private order gRPC; and
+foreign and missing resources share one safe response. Exact-money and
+customer-safe snapshot projection happen at the public boundary, while owner
+derivation and stable subject/filter-bound pagination remain in the owning
+service. Audit events identify tool, domain, scope, downstream method, outcome,
+and a hashed resource identifier without notes, filters, raw IDs, or dependency
+details.
+
 Lightweight app discovery tools:
 
 ```bash
