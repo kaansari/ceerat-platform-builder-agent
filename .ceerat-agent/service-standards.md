@@ -739,7 +739,7 @@ Checkout tests should cover:
 - All four built-in shipping choices and configured replacements.
 - Coupon code, schedule, region, minimum subtotal, and invalid-code behavior.
 - Quote and checkout calculation parity.
-- Address and pricing snapshots on created orders.
+- Address and complete pricing snapshots on created orders, including the exact taxable amount used to calculate tax.
 - Customer ownership, idempotency, payment amount, and transactional cart clearing.
 
 Career methods are owned by `proto/career` inside `ceerat-user-service`:

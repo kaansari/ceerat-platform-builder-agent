@@ -9,7 +9,7 @@
         },
         {
           "name": "orders.address_and_pricing_snapshot",
-          "requirement": "Orders snapshot shipping address, billing address, subtotal, discount, shipping, tax, total, selected shipping method, coupon code/label, tax rate, and tax label.",
+          "requirement": "Orders snapshot shipping address, billing address, subtotal, discount, taxable amount, shipping, tax, total, selected shipping method, coupon code/label, tax rate, and tax label.",
           "implementation_hint": "Copy explicit customer shipping/billing addresses into orders during creation. Repricing must use the order shipping snapshot and reject missing snapshots."
         },
         {

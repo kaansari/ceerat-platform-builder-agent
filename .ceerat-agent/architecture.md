@@ -61,7 +61,7 @@ Customer commerce follows that rule end to end: MCP is a translation boundary,
 private `order.OrderManager` is the sole order writer, and PostgreSQL is the
 atomicity boundary for checkout, order changes, cancellation, payment-session
 invalidation, and durable operation outcomes. Exact money and customer/address/
-pricing snapshots are service-owned. No app, gateway, compatibility service, or
+pricing snapshots—including the exact taxable base—are service-owned. No app, gateway, compatibility service, or
 parallel schema may calculate or persist an order.
 
 ```text
