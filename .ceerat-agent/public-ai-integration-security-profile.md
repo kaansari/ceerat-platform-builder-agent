@@ -33,6 +33,10 @@ private smoke test are all verified live.
 
 - Publish RFC 9728-compatible OAuth Protected Resource Metadata and standard
   authorization-server or OIDC discovery.
+- For Keycloak-backed MCP, use Keycloak 26.4.0 or newer and expose the root
+  `/.well-known/oauth-authorization-server/realms/{realm}` RFC 8414 route.
+  Acceptance tests must fetch that exact issuer-derived route; checking only
+  the realm-local OIDC discovery document is insufficient for MCP clients.
 - Use authorization code with PKCE `S256` for user-delegated clients.
 - Hosted ChatGPT may use a predefined confidential client whose secret is held
   only in ChatGPT's protected app configuration. Native Codex uses a public
