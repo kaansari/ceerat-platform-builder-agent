@@ -243,6 +243,11 @@ Validated ownership rule:
   uses signed 64-bit minor units plus an allowlisted ISO currency. Replaced
   floating-point fields and tags are reserved and are never served in parallel.
 - Customer shipping and billing addresses belong to `customer.CustomerService`. `UpdateMyCustomerProfile` is customer-owned and must derive identity from JWT context.
+- Public AI self-profile reads reuse authenticated private
+  `customer.CustomerService/GetMyCustomerProfile` and may project both complete
+  address objects to their owner under `ceerat.profile.read`. They accept no
+  identity selector and never expose address PII through logs, errors, or
+  discovery. Do not create a separate address service or parallel API.
 - Shipping and billing addresses are explicit new-system state. Quote/order creation requires complete addresses; order creation snapshots both. Tax jurisdiction uses shipping only, and repricing uses the immutable order shipping snapshot.
 - Order pricing is `subtotal - order discount + shipping + tax`. The backend is authoritative for catalog-effective subtotal, coupon eligibility, shipping eligibility, tax selection, integer-minor-unit rounding, and final total.
 - Default shipping options are Free ($0), Standard ($5), Three day ($10), and Next day ($20). Default tax is 9 percent only when no configured state/country tax rule matches.

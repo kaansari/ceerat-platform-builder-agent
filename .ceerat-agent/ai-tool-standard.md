@@ -441,6 +441,12 @@ Current input behavior:
 - Tax, shipping, coupon-rule management, cart quote, and checkout currently have no AI tools. Do not make pricing methods public or emulate their calculations inside an AI tool.
 - If commerce tools are added, customer quote/checkout must use `QuoteMyCartPricing`/`CheckoutMyCart`, while pricing-rule mutation and `RepriceOrder` remain agent/admin-only.
 - AI tools must not invent trusted tax state, shipping/billing addresses, coupon amount, shipping amount, tax, or final total. An authenticated user may explicitly supply their own shipping/billing address through the self-scoped customer-profile update contract, but the tool must use a closed address schema, resource-version precondition, preparation preview, and explicit confirmation. Pricing tools consume the resulting server-owned profile state and never accept an address inline with quote or checkout.
+- `get_my_customer_profile` may return the authenticated owner's complete,
+  distinct shipping and billing address objects under `ceerat.profile.read`.
+  Keep its input closed and selector-free, preserve explicit completeness
+  flags, and project stored values without merging, fallback, normalization, or
+  guessing. Treat address values as response-only PII: never copy them into
+  logs, errors, discovery metadata, traces, analytics, or acceptance artifacts.
 - Pending-order maintenance exposed to AI must use separate update/cancel prepare and confirm tools. Bind the authenticated subject and OAuth client, order version, normalized bounded patch or reason, server fingerprint, idempotency key, digest, and expiry in durable state; atomically consume before dispatch. Never expose delete, arbitrary status/payment changes, line edits, identity fields, addresses, or client-authored prices. Unknown outcomes reconcile by operation kind and original idempotency key rather than retrying the mutation.
 - `get_current_user` takes no arguments and returns sanitized session user fields only.
 - `create_company` requires `name`; website, industry, description, location, source, source URL, and external ID are optional. Backend duplicate validation rejects exact or highly similar global company names.

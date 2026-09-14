@@ -182,6 +182,11 @@ Examples:
   gateway.
 - Order reads and writes are scoped by authenticated user id.
 - Customer address updates derive customer identity from JWT and may update only the caller's shipping and billing addresses.
+- Customer address reads use the protected self-scoped customer-profile method,
+  accept no customer/user selector, and may return full shipping and billing
+  addresses only to the authenticated owner with the narrow profile-read scope.
+  Address values are PII and must be excluded from operational telemetry and
+  error details.
 - Customer cart quote/checkout derives customer, cart, shipping address, billing address, tax jurisdiction, prices, and totals server-side.
 - Agents/admins manage tax, shipping, and coupon rules. Customers cannot list or mutate pricing rules and cannot reprice arbitrary orders.
 - Product catalog reads are visibility-scoped: customer role can only read/list active products.
