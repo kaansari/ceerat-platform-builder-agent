@@ -976,6 +976,14 @@ After a service change is implemented, do not immediately rewrite builder-agent 
 Only then update `.ceerat-agent` docs when the change establishes a reusable platform rule, ownership boundary, security rule, or cookbook pattern.
 
 Use `ceerat-builder docs <scope> --output json` to locate the relevant builder, service, inventory, and app documents.
+
+Database changes must pass `ceerat-builder check sql --output json`. The mapping
+is `db-bootstrap -> cmd/dbbootstrap`, `migrate -> scripts/db-migrate.sh`,
+`preflight-schema -> scripts/db-preflight.sh`, `db-status ->
+scripts/db-status.sh`, and `db-verify -> migrate + preflight + status`. The gate
+inventories ordered migrations/preflights and requires strict psql errors,
+checksum ledger, cross-deploy migration lock, guarded empty bootstrap, and the
+database create/restore runbook. Production runtime must not use AutoMigrate.
 # Transactional self-order standard
 
 For customer checkout/order mutation, derive ownership from verified identity

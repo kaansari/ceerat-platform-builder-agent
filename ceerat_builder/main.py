@@ -1764,6 +1764,40 @@ def _drift_payload(project_root: Path) -> Dict[str, Any]:
     }
 
 
+def _sql_lifecycle_payload(project_root: Path) -> Dict[str, Any]:
+    workspace = _workspace_root(project_root)
+    root = workspace / "services-repo" / "services" / "ceerat-user-service"
+    required = {
+        "migration_runner": root / "scripts" / "db-migrate.sh",
+        "preflight_runner": root / "scripts" / "db-preflight.sh",
+        "status_runner": root / "scripts" / "db-status.sh",
+        "empty_bootstrap": root / "cmd" / "dbbootstrap" / "main.go",
+        "migration_docs": root / "migrations" / "README.md",
+        "restore_runbook": workspace / "infra" / "docs" / "database-create-restore.md",
+    }
+    issues: List[Dict[str, Any]] = []
+    for name, path in required.items():
+        if not path.is_file():
+            issues.append({"severity": "high", "type": "database_lifecycle_file_missing", "name": name, "path": str(path)})
+    migration_names = sorted(path.name for path in (root / "migrations").glob("[0-9]*.sql")) if root.is_dir() else []
+    preflight_names = sorted(path.name for path in (root / "migrations" / "preflight").glob("*.sql")) if root.is_dir() else []
+    makefile = (root / "Makefile").read_text(encoding="utf-8") if (root / "Makefile").is_file() else ""
+    mappings = {
+        "db-bootstrap": "go run ./cmd/dbbootstrap",
+        "migrate": "./scripts/db-migrate.sh",
+        "preflight-schema": "./scripts/db-preflight.sh",
+        "db-status": "./scripts/db-status.sh",
+        "db-verify": "migrate preflight-schema db-status",
+    }
+    for target, command in mappings.items():
+        if f"{target}:" not in makefile or command not in makefile:
+            issues.append({"severity": "high", "type": "database_script_mapping_drift", "target": target, "expected": command})
+    runner = required["migration_runner"].read_text(encoding="utf-8") if required["migration_runner"].is_file() else ""
+    for marker in ("ON_ERROR_STOP=1", "schema_migrations", "checksum mismatch", "schema_migration_lock"):
+        if marker not in runner:
+            issues.append({"severity": "high", "type": "database_migration_gate_missing", "marker": marker})
+    return {"ok": not issues, "issues": issues, "migrations": migration_names, "preflights": preflight_names, "script_mapping": mappings,
+            "checked": ["required database lifecycle files", "Make target to script mapping", "migration ledger/checksum/lock/strict-error gates", "migration and preflight inventory"]}
 def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
     scope = scope.lower().strip()
     workspace = _workspace_root(project_root)
@@ -2497,18 +2531,18 @@ def docs(
 
 @app.command("check")
 def check(
-    kind: str = typer.Argument(..., help="Check kind: drift or apps."),
+    kind: str = typer.Argument(..., help="Check kind: drift, apps, or sql."),
     output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
     project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
 ) -> None:
     """Run non-mutating consistency checks over inventories and security data."""
     output = output.lower().strip()
     kind = kind.lower().strip()
-    if kind not in {"drift", "apps"}:
-        error_console.print("[bold red]Error:[/bold red] check kind must be drift or apps")
+    if kind not in {"drift", "apps", "sql"}:
+        error_console.print("[bold red]Error:[/bold red] check kind must be drift, apps, or sql")
         raise typer.Exit(code=2)
     try:
-        payload = _app_check_payload(project_root) if kind == "apps" else _drift_payload(project_root)
+        payload = _app_check_payload(project_root) if kind == "apps" else (_sql_lifecycle_payload(project_root) if kind == "sql" else _drift_payload(project_root))
     except (ContextError, json.JSONDecodeError) as exc:
         error_console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=1) from exc
