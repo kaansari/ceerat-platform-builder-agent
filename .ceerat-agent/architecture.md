@@ -422,6 +422,28 @@ Builder guidance:
 - Do not propose direct SQL access from apps, agents, crawlers, or UI containers as a Kubernetes shortcut.
 - Keep Kubernetes docs in `infra/README.md` aligned with any durable deployment behavior.
 
+## Preference domain contract boundary
+
+`preference.PreferenceService` is the canonical protected, self-scoped contract
+for customer-owned portable preferences. It is implemented as a domain module
+inside `ceerat-user-service`, not as another binary or database. Its nine RPCs
+cover get/list/context/definitions, preview/confirm upsert, preview/confirm
+deletion, and operation-status reconciliation. Requests never accept customer,
+user, tenant, role, or OAuth authority.
+
+Values and scopes are closed typed unions; exact money reuses
+`commerce.Money`. Definition consumer-domain metadata is server-owned. The
+`txse_intelligence` consumer may receive only minimized presentation/query
+defaults. Preferences never grant Exchange Data entitlement, select market
+environment, alter book health/data classification/formulas, suppress required
+warnings, represent holdings/suitability, or authorize trading. TXSE services
+resolve opaque instrument/watchlist references and remain operational when the
+preference service is unavailable.
+
+The contract exists before runtime implementation. Service inventory may mark
+it `contract_only` until the handler is registered; do not invent a fallback,
+generic CRUD alias, public gRPC method, REST route, or legacy AI path.
+
 ## BI and System Intelligence Direction
 
 Do not build business intelligence on raw application logs. Logs are for debugging. Business intelligence should use structured events in a separate BI/analytics database.
