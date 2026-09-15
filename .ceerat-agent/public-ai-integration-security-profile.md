@@ -56,6 +56,14 @@ private smoke test are all verified live.
   self-cart, or self-order scope grants an operation category only; it never
   grants ownership, price, inventory, state-transition, tenant-selection, or
   administrative authority.
+- Customer preference access uses separate optional
+  `ceerat.preferences.read` and `ceerat.preferences.write` grants on only the
+  canonical ChatGPT and Codex MCP clients. Definition/context/list/detail and
+  operation-status reads use the read grant; prepared and confirmed persistence
+  uses write. Neither grant selects customer identity, mutates definitions, or
+  bypasses private-service RBAC, ownership, confirmation, version, and
+  idempotency enforcement. Publish protected-resource metadata before tools,
+  then require fresh consent because existing tokens do not gain new scopes.
 - Require HTTPS for all public metadata, authorization, token, JWKS, and MCP
   endpoints.
 

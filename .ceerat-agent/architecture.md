@@ -173,6 +173,10 @@ remaining Phase 1 security acceptance gates are still required.
 ## Dependency Rules
 
 - Apps depend on backend APIs, not databases.
+- Phase 3 preference OAuth discovery may advertise the optional read/write
+  scopes before preference tools and RPCs are live. Scope publication alone
+  exposes no preference capability; the gateway must not advertise tools until
+  their matching protected private gRPC/service path is deployed and verified.
 - Agents depend on backend APIs, not databases.
 - Services depend on contracts.
 - Contracts must not depend on apps, services, GORM, repositories, or persistence.
