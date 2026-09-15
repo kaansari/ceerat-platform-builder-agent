@@ -444,6 +444,17 @@ The contract exists before runtime implementation. Service inventory may mark
 it `contract_only` until the handler is registered; do not invent a fallback,
 generic CRUD alias, public gRPC method, REST route, or legacy AI path.
 
+Preference storage uses the existing user-service PostgreSQL database and an
+explicit ordered migration, rollback, and production startup preflight; it is
+not owned by `AutoMigrate`. Required relations are definitions, customer
+preferences, customer profile versions, operations, and history. Enforce typed
+values/scopes, customer foreign keys and predicates, logical uniqueness,
+positive versions, bounded idempotency states, retention indexes, and lock order
+profile -> logical preference -> operation/history. Seed definitions with
+`ON CONFLICT DO NOTHING` so startup/migration never overwrites reviewed operator
+changes. Do not store OAuth secrets, prompts, tool bodies, arbitrary JSON, TXSE
+Exchange Data/state, entitlements, positions, suitability, or trading authority.
+
 ## BI and System Intelligence Direction
 
 Do not build business intelligence on raw application logs. Logs are for debugging. Business intelligence should use structured events in a separate BI/analytics database.
