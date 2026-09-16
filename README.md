@@ -16,7 +16,7 @@ The agent is intentionally scoped to backend service work:
 - protobuf/gRPC contracts
 - backend service handlers and repositories
 - PostgreSQL OLTP database objects and migrations
-- JWT/RBAC/security and ownership checks
+- OAuth/scope/RBAC/security and ownership checks
 - admin/operations gRPC methods owned by services
 - structured logging and business events
 - infra/config impact for service processes
@@ -189,8 +189,9 @@ gates remain owned by `infra/docs/public-agent-phase-1-milestone.md`.
 
 The consolidated normative checklist is
 `.ceerat-agent/public-ai-integration-security-profile.md`. Apply it whenever a
-service plan introduces a public MCP gateway, OAuth-delegated AI client, or
-external-to-internal identity exchange.
+service plan introduces a public MCP gateway or OAuth-delegated client. The
+canonical path forwards the same Keycloak access token to private gRPC; do not
+introduce identity-exchange or internally minted end-user-token paths.
 
 The 2026-09-04 Phase 2 OAuth validation added one reusable rule: optional
 domain scopes must be synchronized across protected-resource metadata,

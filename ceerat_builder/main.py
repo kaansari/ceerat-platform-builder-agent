@@ -491,7 +491,7 @@ def _suggested_service_skeleton(domain: str, owner: RecommendedOwner, related: O
             startup_wiring=[
                 f"Create {domain} repository after DB/migrations.",
                 f"Expose {domain} RPCs through {related.service if related else _pascal(domain) + 'Manager'} registration.",
-                f"Ensure JWT/RBAC/logging interceptors protect {domain} RPCs.",
+                f"Ensure OAuth/scope/RBAC/logging interceptors protect {domain} RPCs.",
                 "Enable reflection as existing service already does.",
             ],
         )
@@ -507,7 +507,7 @@ def _suggested_service_skeleton(domain: str, owner: RecommendedOwner, related: O
         startup_wiring=[
             "Create service config/env loader.",
             "Connect to PostgreSQL.",
-            "Wire JWT/RBAC/logging interceptors.",
+            "Wire OAuth/scope/RBAC/logging interceptors.",
             "Register generated gRPC server and reflection.",
             "Add infra start/stop/log integration.",
         ],
@@ -676,7 +676,7 @@ def _source_evidence(project_root: Path, owner: RecommendedOwner, related_contra
             category="security_wiring",
             path=service_main,
             symbols=[
-                "security.NewJWTInterceptor",
+                "security.NewOAuthInterceptor",
                 "security.NewRBACInterceptor",
                 "grpcLoggingInterceptor",
                 "grpc.ChainUnaryInterceptor",
@@ -684,7 +684,7 @@ def _source_evidence(project_root: Path, owner: RecommendedOwner, related_contra
                 "adminpb.RegisterAdminServiceServer",
             ],
             finding=(
-                "When JWT auth is enabled, unary interceptors are chained as JWT, RBAC, then logging; "
+                "Protected unary interceptors are chained as OAuth, identity, scope, RBAC, then logging; "
                 "RBAC cache refresh and admin/operations hooks are exposed through registered gRPC services."
             ),
         ))
@@ -827,7 +827,7 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
             "Use separate BI/event storage for analytics and intelligence workloads.",
         ],
         relevant_security=[
-            "Use JWT -> RBAC -> Logging -> Handler interceptor order.",
+            "Use OAuth -> identity -> method scope -> RBAC -> logging -> handler order.",
             "Add protected RPCs to KnownGRPCMethods.",
             "Add default role permissions to DefaultRolePermissions.",
             "Keep DefaultPublicMethods minimal.",
@@ -1010,7 +1010,7 @@ def _service_pattern_payload() -> Dict[str, Any]:
 def _grpc_security_pattern_payload() -> Dict[str, Any]:
     return {
         "kind": "grpc-security",
-        "interceptor_order": "JWT -> RBAC -> logging -> handler for unary calls when JWT auth is enabled.",
+        "interceptor_order": "OAuth -> identity -> method scope -> RBAC -> logging -> handler for protected unary calls.",
         "must_update": [
             "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go: KnownGRPCMethods",
             "contracts-repo/packages/ceerat-contracts/security/grpc_methods.go: DefaultRolePermissions",

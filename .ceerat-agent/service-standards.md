@@ -223,12 +223,12 @@ Service startup should be predictable and boring:
 Unary gRPC interceptor order:
 
 ```text
-JWT -> RBAC -> Logging -> Handler
+OAuth -> Identity -> Method Scope -> RBAC -> Logging -> Handler
 ```
 
-This order matters. JWT establishes identity, RBAC checks method permissions, logging records the final status and duration, and the handler applies business and ownership rules.
+This order matters. OAuth validates the credential, identity resolution loads database authority, scope and RBAC authorize the method, logging records the final status and duration, and the handler applies business and ownership rules.
 
-Stream gRPC requests should use JWT and RBAC before the handler when applicable.
+Stream gRPC requests use the same OAuth, identity, scope, and RBAC checks before the handler.
 
 ## Configuration Standard
 
@@ -242,8 +242,9 @@ Minimum service configuration:
 | `DB_USER` | PostgreSQL user. |
 | `DB_PASSWORD` / `DB_PASS` | PostgreSQL password. |
 | `DB_NAME` | PostgreSQL database name. |
-| `JWT_SECRET` | JWT signing secret. |
-| `JWT_AUTH_ENABLED` | Enables JWT/RBAC enforcement. |
+| `CEERAT_OAUTH_ISSUER` | Exact trusted Keycloak realm issuer. |
+| `CEERAT_OAUTH_AUDIENCE` | Canonical protected API audience. |
+| `CEERAT_OAUTH_ALLOWED_CLIENTS` | Explicit approved OAuth clients. |
 | `CEERAT_ENV` / `APP_ENV` | Runtime environment label. |
 
 Optional service variables:
@@ -389,43 +390,28 @@ Use shared hooks from `contracts-repo/packages/ceerat-contracts/security`.
 
 | Hook | Purpose |
 | --- | --- |
-| `DefaultPublicMethods` | Exact gRPC methods that bypass JWT/RBAC. |
+| `DefaultPublicMethods` | Exact gRPC methods that bypass OAuth/RBAC. |
 | `KnownGRPCMethods` | Methods assignable through admin/RBAC tooling. |
 | `DefaultRolePermissions` | Seed permissions for default roles. |
-| `NewJWTInterceptor` | Validates tokens and injects authenticated user context. |
+| `NewOAuthInterceptor` | Validates Keycloak access tokens and establishes the verified principal. |
 | `NewRBACInterceptor` | Checks role permission for the current gRPC method. |
 | `WithAuthenticatedUser` | Test/helper hook to attach user identity to context. |
 | `AuthenticatedUserFromContext` | Handler hook to read authenticated user identity. |
 
-Protected calls require a JWT in metadata:
+Protected calls require a Keycloak OAuth access token in metadata:
 
 ```text
-authorization: Bearer <jwt>
-```
-
-The alternate header is:
-
-```text
-x-auth-token: <jwt>
+authorization: Bearer <access-token>
 ```
 
 Token values must never be logged.
-Auth validation responses should return sanitized current user claims from the auth service. Callers must not decode JWT payloads locally after `auth.Auth/ValidateToken`.
 
 Current default public methods are intentionally small:
 
 ```text
-/auth.Auth/Auth
-/auth.Auth/Create
-/auth.Auth/RegisterCustomer
-/auth.Auth/Register
-/auth.Auth/Login
-/auth.Auth/ValidateToken
 /grpc.health.v1.Health/Check
 /health.Health/Check
 ```
-
-`Register` and `Login` are compatibility names. Current generated auth methods use `/auth.Auth/Create`, `/auth.Auth/RegisterCustomer`, and `/auth.Auth/Auth`.
 
 Handler pattern:
 
@@ -466,7 +452,8 @@ Customer-owned data must be scoped to the authenticated user. Examples:
 - Order reads and writes are scoped by authenticated user id.
 - Product catalog reads are visibility scoped: customer role can only read/list/add active products.
 
-`JWT_AUTH_ENABLED=false`, `0`, or `no` disables JWT/RBAC and should only be used for local troubleshooting.
+There is no runtime authentication-disable toggle. Tests attach verified
+principals through explicit test-only helpers.
 
 ## RBAC Cache Standard
 

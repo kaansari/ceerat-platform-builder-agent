@@ -17,10 +17,11 @@ CEERAT backend service
 PostgreSQL
 ```
 
-The gateway is a policy-enforcement point, not a transparent proxy. External
-OAuth tokens terminate at the gateway and must not be reused as internal
-service JWTs. Backend services remain authoritative for RBAC, record ownership,
-business validation, and persistence.
+The gateway is a policy-enforcement point, not a transparent proxy. It forwards
+the original validated Keycloak bearer only to the designated private gRPC
+resource. Backend services independently revalidate OAuth and remain
+authoritative for scopes, RBAC, account status, record ownership, business
+validation, and persistence.
 
 For consequential commerce tools, expose a read-only quote/preview followed by
 a confirmation bound to an expiring server fingerprint, optimistic version, and
@@ -131,16 +132,17 @@ user IDs are development-only practices.
 
 ## Gateway-to-service authentication
 
-Private networking is not authentication. Production gateways must use a
-dedicated workload identity and an audience-restricted internal
-assertion/token-exchange contract. The service must verify the gateway workload,
-the external identity mapping, the exchange audience, expiry, and replay
-protection before issuing or accepting an internal user context.
+Private networking is not authentication. MCP client tokens must include both
+the exact MCP resource audience and canonical `ceerat-api` audience. The gateway
+requires the former; private gRPC independently requires the latter plus issuer,
+signature, client, time, subject, scope, RBAC, account, and ownership checks.
+The bearer stays request-scoped and must not be logged, persisted, placed in
+model-visible state, exchanged, or forwarded to any resource other than the
+designated CEERAT gRPC service.
 
-An endpoint that mints a user token from an unauthenticated caller-supplied ID
-is prohibited. Legacy ID-based authentication may be used only in an isolated
-development environment, must not be generally reachable, and is a release
-blocker until removed.
+An endpoint that mints or exchanges a user token from caller-supplied identity
+is prohibited. No password, ID-based, internal-JWT, or compatibility fallback
+may coexist with the OAuth path.
 
 ## Tool-contract controls
 

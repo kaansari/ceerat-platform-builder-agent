@@ -70,12 +70,27 @@ session-management permission; never grant `realm-admin`.
 Protected gRPC calls flow through:
 
 ```text
-JWT interceptor
-  -> RBAC interceptor
+OAuth access-token validation
+  -> issuer/subject identity resolution
+  -> exact method-scope policy
+  -> CEERAT RBAC interceptor
   -> logging interceptor
   -> handler ownership checks
   -> repository scoped query/write
 ```
+
+The end-user credential is the original Keycloak access token. Direct gRPC and
+MCP-forwarded requests use the same RS256/JWKS, issuer, canonical API audience,
+approved-client, expiry, token-type, and subject checks. Services must reject
+HS256 end-user tokens, gateway-minted identity tokens, and `x-auth-token` as an
+OAuth transport. OAuth scopes never replace database-authoritative account
+status, CEERAT roles, or record ownership.
+
+Local acceptance must use authorization code with PKCE S256 against loopback
+Keycloak and invoke a real protected gRPC method. Synthetic JWTs may cover
+negative unit cases but cannot satisfy the positive integration gate. Any
+helper must refuse public issuers/targets and must not print, persist, or place
+tokens, codes, verifiers, cookies, or identity claims in evidence.
 
 Use RBAC for:
 
@@ -95,39 +110,29 @@ Use these shared hooks from `contracts-repo/packages/ceerat-contracts/security`:
 
 | Hook | Purpose |
 | --- | --- |
-| `DefaultPublicMethods` | Exact methods that bypass JWT/RBAC. |
+| `DefaultPublicMethods` | Exact methods that bypass OAuth/RBAC. |
 | `KnownGRPCMethods` | Methods admin/RBAC tooling can assign permissions for. |
 | `DefaultRolePermissions` | Seed permissions for default roles. |
-| `NewJWTInterceptor` | Validates token and injects authenticated user context. |
+| `NewOAuthInterceptor` | Validates OAuth and establishes verified identity context. |
 | `NewRBACInterceptor` | Checks role permission for the current gRPC method. |
 | `AuthenticatedUserFromContext` | Handler hook to read authenticated user identity. |
 | `WithAuthenticatedUser` | Test helper to attach identity to context. |
 
-## JWT Rules
+## OAuth access-token rules
 
 Protected calls must send:
 
 ```text
-authorization: Bearer <jwt>
+authorization: Bearer <access-token>
 ```
 
-Also accepted:
-
-```text
-x-auth-token: <jwt>
-```
-
-JWT values must never be logged. JWT claims should exclude passwords and token fields.
-Auth validation responses should return sanitized current user claims from the auth service. Callers must not decode JWT payloads locally after `auth.Auth/ValidateToken`.
+Token values must never be logged or persisted. Callers must not derive
+authority by decoding claims without the shared validator and database identity
+resolution.
 
 ## Public Method Rules
 
-Public methods must be rare. Good candidates:
-
-- Login.
-- Registration.
-- Token validation.
-- Health check.
+Public methods must be rare. Health checks are the only current candidates.
 
 Bad public candidates:
 
