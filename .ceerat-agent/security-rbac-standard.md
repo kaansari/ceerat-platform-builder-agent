@@ -54,6 +54,11 @@ create/link the CEERAT user and customer, store the identity mapping, and avoid
 direct SQL from the gateway. Until that workflow exists, manual linking is a
 development-only operation.
 
+Operational admin and agent identities are valid without a customer row. A
+customer identity must have an owned customer profile before customer-domain
+handlers proceed. Missing authentication context, blank ownership columns, and
+unresolved issuer/subject bindings fail closed.
+
 For MCP connection logout, bind local state to the validated authorization
 server session claim plus client ID, not the access-token `jti`; `jti` changes
 on refresh. Revoke locally before calling the authorization server, and report
@@ -166,6 +171,14 @@ Default role pattern:
 
 ## Ownership Rules
 
+Self-service protobuf requests must not carry caller-selected owner identity.
+Derive `user_id` and `customer_id` from `AuthenticatedUserFromContext` and the
+service-owned customer lookup. The contracts reserve removed fields for wire
+compatibility: `CreateMyOrderRequest.status`, AI thread request `user_id`, and
+Career job-cart request `customer_id`. Keep explicit selectors only on
+administrative or deliberately cross-user methods, and document that boundary
+in the contract and service inventories.
+
 Customer-owned data must be scoped to the authenticated user.
 
 Examples:
@@ -197,6 +210,12 @@ Examples:
 - Product catalog reads are visibility-scoped: customer role can only read/list active products.
 - Cart product items are visibility-scoped: customer role can add active products only.
 - Product catalog writes are RBAC-scoped to admin/agent through `service.ServiceManager`.
+
+All protected writes must preserve server-owned fields and use explicit patch
+presence. Version conflicts fail with `codes.Aborted`; callers cannot select an
+order lifecycle state or supply a count-derived order number. Child collections
+are modified only by explicit collection operations or an explicit collection
+field in a patch.
 
 Handler pattern:
 
@@ -377,3 +396,11 @@ an authenticated customer role, version/fingerprint preconditions, and a scoped
 idempotency key. Cross-customer IDs return the same not-found shape. Audit only
 safe IDs, versions, operation state/kind, changed field names, and request ID;
 never log notes, addresses, raw keys, fingerprints, tokens, or database text.
+
+## Gateway policy projection gate
+
+Public gateways must consume `security.GatewayToolPolicies` from the canonical
+contracts module for downstream method and scope decisions. A checked-in
+projection must pass its deterministic drift test; hand-maintained method or
+scope tables are not acceptable. Gateway-owned connection tools must be
+explicitly identified because they do not map to a service RPC.

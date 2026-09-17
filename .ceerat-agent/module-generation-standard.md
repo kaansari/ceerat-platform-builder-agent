@@ -129,6 +129,14 @@ If proposing a new service, include:
 
 ## Contract-First Recipe
 
+The contracts module has one canonical Go module path:
+
+```text
+github.com/kaansari/ceerat-contracts
+```
+
+Use that path in imports, protobuf `go_package` options, generated code, inventories, and generated service plans. A local `replace` directive may point at the checkout under `contracts-repo/packages/ceerat-contracts`, but it must not change the module identity. Never introduce the historical `github.com/kaansari/ceerat-platform/packages/ceerat-contracts` path.
+
 For backend APIs:
 
 1. Add or update `.proto` definitions in `contracts-repo/packages/ceerat-contracts/proto/<module>`.

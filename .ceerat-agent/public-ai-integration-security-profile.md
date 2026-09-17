@@ -140,6 +140,12 @@ The bearer stays request-scoped and must not be logged, persisted, placed in
 model-visible state, exchanged, or forwarded to any resource other than the
 designated CEERAT gRPC service.
 
+Private gateway-to-service gRPC transport uses TLS in production and mTLS when
+the service requires client authentication. Plaintext is a development
+loopback exception only. The gateway forwards the original bearer and keeps
+OAuth `sub`, CEERAT user identity, issuer, session ID, client ID, and token ID
+as distinct fields; it must not silently substitute one for another.
+
 An endpoint that mints or exchanges a user token from caller-supplied identity
 is prohibited. No password, ID-based, internal-JWT, or compatibility fallback
 may coexist with the OAuth path.

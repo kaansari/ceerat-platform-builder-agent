@@ -470,6 +470,13 @@ role -> grpc_method -> allowed
 - Expose a manual refresh hook for admin use.
 - Optionally refresh periodically with `RBAC_CACHE_REFRESH_INTERVAL`.
 
+Startup reconciliation is authoritative for managed built-in roles. Under a
+database lock, insert missing desired permissions and remove obsolete
+permissions for `admin`, `agent`, and `customer`; never delete permissions from
+custom roles. User persistence must have no implicit administrator role
+default, and the first administrator must be bound to an explicit validated
+issuer and subject before OAuth access is granted.
+
 Admin endpoints that mutate roles or permissions must refresh the cache before returning success.
 
 If a new service does not own RBAC data, do not create another RBAC database. Use the shared permission source or call the central owner. One source of truth is more important than local convenience.
@@ -494,6 +501,18 @@ Repository rules:
 - Recalculate totals inside the same transaction that adds, updates, removes, or clears line items.
 - Keep protobuf mapping outside the repository where practical.
 - Return errors handlers can map to gRPC-friendly statuses.
+
+Write concurrency standard:
+
+- Mutations use explicit patch field presence; omitted scalar fields and child
+  collections remain unchanged.
+- Versioned resources use conditional updates (`id AND version`) and return a
+  canonical `codes.Aborted` conflict when a writer is stale.
+- Multi-table mutations remain in one transaction. Idempotency keys are unique
+  within their authenticated owner and operation, replay the same request, and
+  reject a different request hash.
+- Human-readable order numbers use a database sequence or atomic counter; a
+  count-plus-one allocator is prohibited.
 
 Ownership-safe query pattern:
 
@@ -611,13 +630,10 @@ grpcurl -plaintext localhost:50051 describe auth.Auth
 grpcurl -plaintext localhost:50051 describe auth.User
 ```
 
-Login and capture a token:
+Obtain a Keycloak access token for the explicitly configured administrator identity:
 
 ```bash
-grpcurl -plaintext \
-  -d '{"email":"admin@ceerat.local","password":"admin123"}' \
-  localhost:50051 \
-  auth.Auth/Auth
+export TOKEN="<Keycloak access token>"
 ```
 
 Call a protected method:
@@ -981,3 +997,10 @@ fingerprint over exact server inputs. Retain outcomes beyond client retry and
 operator reconciliation windows; cleanup may never remove `in_progress` or
 `outcome_unknown`. Do not introduce float money, hard-delete cancellation,
 gateway pricing, dual contracts, compatibility columns, or fallback reads.
+
+## Canonical gateway policy
+
+When a service RPC is exposed through the gateway, its tool policy must be
+declared in `ceerat-contracts/security.GatewayToolPolicies`. The projection
+must match the canonical method scope policy and include mutability,
+confirmation, and safe operation state metadata.
