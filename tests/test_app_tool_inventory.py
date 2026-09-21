@@ -22,6 +22,15 @@ func (r *ToolRunner) Run() {}
     def test_returns_empty_profiles_for_unrecognized_source(self) -> None:
         self.assertEqual(_tool_profiles_from_source("package agent"), {"agent": [], "customer": []})
 
+    def test_extracts_agent_only_service_without_customer_compatibility_profile(self) -> None:
+        source = '''
+func toolDefinitions() []tool {
+    return []tool{{Function: toolFunction{Name: "agent_only"}}}
+}
+func (r *ToolRunner) Run() {}
+'''
+        self.assertEqual(_tool_profiles_from_source(source), {"agent": ["agent_only"], "customer": []})
+
     def test_inventory_lifecycle_defaults_active_and_honors_deprecated(self) -> None:
         self.assertTrue(_is_active_app_inventory({}))
         self.assertTrue(_is_active_app_inventory({"lifecycle": "active"}))

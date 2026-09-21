@@ -2129,13 +2129,18 @@ def _app_impact_payload(project_root: Path, target: str, route: Optional[str], s
 def _tool_profiles_from_source(source: str) -> Dict[str, List[str]]:
     agent_start = source.find("func toolDefinitions()")
     customer_start = source.find("func customerToolDefinitions()")
-    runner_start = source.find("func (r *ToolRunner)", customer_start)
-    if agent_start < 0 or customer_start < 0 or runner_start < 0:
+    runner_start = source.find("func (r *ToolRunner)", max(agent_start, customer_start))
+    if agent_start < 0:
         return {"agent": [], "customer": []}
     pattern = re.compile(r'Name:\s*"([a-z][a-z0-9_]*)"')
+    agent_end = customer_start if customer_start >= 0 else (runner_start if runner_start >= 0 else len(source))
+    customer_tools: List[str] = []
+    if customer_start >= 0:
+        customer_end = runner_start if runner_start >= 0 else len(source)
+        customer_tools = list(dict.fromkeys(pattern.findall(source[customer_start:customer_end])))
     return {
-        "agent": list(dict.fromkeys(pattern.findall(source[agent_start:customer_start]))),
-        "customer": list(dict.fromkeys(pattern.findall(source[customer_start:runner_start]))),
+        "agent": list(dict.fromkeys(pattern.findall(source[agent_start:agent_end]))),
+        "customer": customer_tools,
     }
 
 
@@ -2168,13 +2173,18 @@ def _app_check_payload(project_root: Path) -> Dict[str, Any]:
                     "path": file_path,
                 })
 
-    tool_source_path = workspace / "apps-repo" / "ai" / "ceerat-agent-service" / "internal" / "agent" / "tools.go"
+    tool_source_dir = workspace / "apps-repo" / "ai" / "ceerat-agent-service" / "internal" / "agent"
     ai_app = next((
         item for item in inventories["apps"].get("ai_apps", [])
         if item.get("name") == "ceerat-agent-service" and _is_active_app_inventory(item)
     ), None)
-    if tool_source_path.is_file() and ai_app is not None:
-        actual_profiles = _tool_profiles_from_source(tool_source_path.read_text(encoding="utf-8"))
+    if tool_source_dir.is_dir() and ai_app is not None:
+        tool_source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(tool_source_dir.glob("*.go"))
+            if not path.name.endswith("_test.go")
+        )
+        actual_profiles = _tool_profiles_from_source(tool_source)
         inventory_profiles = {
             "agent": ai_app.get("tools", []),
             "customer": ai_app.get("customer_tools", []),
