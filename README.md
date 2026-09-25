@@ -26,6 +26,50 @@ Frontend and UX work should be handled by a separate UI-focused agent. This serv
 agent may still report integration impact for existing apps or AI tools when a
 service/API change requires follow-up coordination.
 
+## Current Go documentation as planning evidence
+
+The builder reads current workspace Go documentation on every `plan` and
+`check-context` invocation. It runs `go list` and `go doc` against the canonical
+contracts, user service, gateway, private agent service, and three portal
+modules. This is the same source rendered by pkgsite; no running documentation
+server or manual session-memory refresh is required.
+
+```bash
+# Run from ceerat-platform-builder-agent.
+ceerat-builder go-docs "customer profile" --output json
+ceerat-builder go-docs \
+  --package github.com/kaansari/ceerat-contracts/proto/customer \
+  --symbol CustomerProfilePatch --output table
+ceerat-builder plan "update customer profile" --output json
+ceerat-builder check-context
+```
+
+Both local planning packets and AI planning context include fresh documentation.
+Local packets put it in `source_evidence` with category
+`current_go_documentation`. Results identify package/source paths, source files,
+a documentation SHA-256, and a loopback pkgsite link. The SHA describes the
+returned full documentation, not a deployed revision or a whole-repository hash.
+Use the [workspace guide](../infra/docs/go-documentation.md) to configure the
+parent `go.work` and browse the same source at `http://127.0.0.1:6060`.
+
+The loader ranks packages by request words and selects at most eight packages,
+with at most 12,000 documentation characters per package. It marks truncated
+output and missing checkouts explicitly. Use `--package` and `--symbol` to
+inspect a specific declaration; an omitted package is not evidence of absence.
+Each Go command has a 30-second timeout. The loader disables module downloads
+and uses readonly module resolution. Missing Go, missing workspace membership,
+or dependency-resolution failures produce an actionable error instead of
+silently substituting stale Markdown. Prepare dependencies separately if needed.
+It does not execute application binaries or call OpenAI in local mode.
+
+Keep API documentation beside code in package/declaration comments (and proto
+source for generated contracts). Update `.ceerat-agent` Markdown when actual
+architecture, security policy, or operating procedures change—not every time a
+symbol changes. Inventories remain discovery hints and still need their own
+drift checks; they are not automatically rewritten by this loader. Source facts
+and policy conflicts must be reported, not resolved by weakening security rules.
+The Python builder itself stays outside the Go workspace.
+
 ## Setup
 
 ```bash
@@ -180,6 +224,15 @@ Only update `.ceerat-agent` standards after the implementation is tested and a
 human validates the behavior. Service docs and inventories should describe the
 final implemented surface; builder-agent standards should capture reusable,
 validated platform rules rather than speculative plans.
+
+The September 2026 portal TLS incident established a reusable deployment rule:
+public HTTPS and process health do not prove private backend TLS trust. Human
+validation confirmed that correcting the portal CA restored login. The tested
+readiness implementation and its rollout evidence are recorded in
+`.ceerat-agent/architecture.md`; certificate distribution/rotation rules live in
+`security-rbac-standard.md`, and deployment checks in `service-standards.md`.
+Shared CA environment groups are recommended, not recorded as already deployed.
+Keep live rollout and login verification separate from local test results.
 
 The 2026-08-31 public-agent Phase 1 milestone is such a validated rule set.
 `.ceerat-agent/architecture.md`, `security-rbac-standard.md`, and

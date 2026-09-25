@@ -70,6 +70,42 @@ sharing that SSO session may also be signed out. A service revoker must be
 service-account-only, secret-managed, and limited to the minimum supported
 session-management permission; never grant `realm-admin`.
 
+## Private gRPC TLS trust and certificate lifecycle
+
+- Production portals and gateways must use verified TLS for private gRPC;
+  use mTLS where the service requires client authentication. Never resolve
+  trust failures with plaintext or `InsecureSkipVerify`.
+- The client CA must validate the actual backend certificate chain, and the
+  configured server name must match its SAN. A matching filename or CA subject
+  name does not prove that certificates share the same signing key.
+- Keep CA signing keys and backend private keys outside Git, application logs,
+  and client deployments. The backend needs its certificate and private key;
+  ordinary server-authenticated clients need only the public CA certificate.
+  A PEM file is an encoding container, not a secrecy classification: public
+  certificates can be version-controlled under an explicit distribution policy.
+- Render secret files are separately provisioned resources. Environment values
+  such as `/etc/secrets/ceerat-grpc-ca.pem` point to files; they do not create
+  them. Prefer one shared CA-only environment group for clients and remove
+  conflicting per-service copies when adopting it. Keep private keys out of
+  that shared group. Blueprint references can express group membership, while
+  file contents are managed through Render's supported secret-file mechanisms.
+- Reuse existing CA material on normal deployment. Before rotation, inventory
+  every client, verify certificate expiry and SANs, and plan renewal/rollback.
+  For a CA change, distribute a bundle trusting old and new CAs first, redeploy
+  clients, rotate the server certificate, verify fresh handshakes, then remove
+  obsolete trust and redeploy clients. In-memory trust pools require reload or
+  restart; changing file contents alone does not update a running process.
+- Keep certificate expiry monitoring separate from deployment probes. A passing
+  readiness check now does not guarantee certificates remain valid later.
+
+A TLS handshake failure occurs before account authorization. Do not diagnose a
+user as inactive from a generic portal login error alone. Log the failing stage
+and a sanitized dependency error server-side; never log access tokens, OAuth
+codes/state/verifiers, cookies, private keys, or unfiltered callback queries.
+Public readiness responses must remain generic and require no user token.
+Portal role/status restrictions and service-side authorization remain mandatory
+after transport succeeds.
+
 ## gRPC Security Flow
 
 Protected gRPC calls flow through:

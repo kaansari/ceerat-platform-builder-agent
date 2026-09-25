@@ -157,9 +157,25 @@ Plans must preserve:
 
 Validated portal session rules:
 
-- Agent-facing `ceerat-web-ui` login/session must require `role == agent` and active status.
+- Agent-facing `ceerat-web-ui` login/session requires an active `agent` or `admin` account; customer accounts are denied.
 - Customer-facing `ceerat-customer-ui` login/session must require `role == customer` and active status.
 - Backend services remain the security boundary, but app-level role checks prevent wrong-role sessions from reaching pages and AI chat surfaces where backend tools will correctly deny access.
+
+## Portal connectivity and login diagnostics
+
+Customer, admin, and agent (`ceerat-web-ui`) portals have separate liveness and
+backend transport readiness endpoints: `/healthz` checks the app process;
+`/readyz` performs a fresh backend TLS/gRPC handshake within two seconds. Render
+uses `/readyz` for deployment health. See `service-standards.md` for tests and
+`security-rbac-standard.md` for CA provisioning and rotation.
+
+OAuth token exchange, backend TLS connectivity, session lookup, and role/status
+authorization are separate failure stages. A generic account-required message
+is not evidence that account authorization ran. Preserve sanitized server-side
+stage diagnostics and keep credentials and callback query strings out of logs.
+The customer callback currently distinguishes `oauth.session.failed` from
+`oauth.account.denied` in logs; do not assume those events exist in other portals.
+A passing readiness probe still requires a separate login smoke test.
 
 ## Workflow Checklist
 

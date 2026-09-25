@@ -150,6 +150,19 @@ An endpoint that mints or exchanges a user token from caller-supplied identity
 is prohibited. No password, ID-based, internal-JWT, or compatibility fallback
 may coexist with the OAuth path.
 
+## Transport deployment checks
+
+Apply the certificate lifecycle rules in `security-rbac-standard.md` to every
+private-gRPC caller. Public HTTPS, private network reachability, and possession
+of an OAuth token do not establish backend TLS trust. Validate the backend CA
+and hostname without disabling verification.
+
+Separate liveness from transport readiness. The three browser portals implement
+fresh bounded TLS/gRPC readiness probes; this does not imply that gateways or
+agent services already expose the same endpoint. Plans changing their transport
+must identify the applicable probe and test coverage. Never weaken protected
+business-method authorization to make a deployment check pass.
+
 ## Tool-contract controls
 
 - Expose a small allowlisted tool surface with strict JSON Schemas.

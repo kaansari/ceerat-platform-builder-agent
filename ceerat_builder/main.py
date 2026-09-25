@@ -12,6 +12,7 @@ from rich.table import Table
 
 from ceerat_builder.config import ConfigError, load_ai_settings
 from ceerat_builder.context_loader import ContextError, load_agent_context
+from ceerat_builder.go_docs import GoDocsError, load_go_docs
 from ceerat_builder.models import (
     DomainRequirement,
     ImplementationPlan,
@@ -747,7 +748,7 @@ def _source_evidence(project_root: Path, owner: RecommendedOwner, related_contra
 
 
 def _local_packet(request: str, project_root: Path, requirements_file: Optional[Path] = None) -> PlanningPacket:
-    load_agent_context(project_root)
+    context = load_agent_context(project_root, request=request)
     inventories = _load_inventories(project_root)
     domain = _domain_key(request)
     matches = (
@@ -779,6 +780,11 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
         "If the request is ambiguous, Codex should ask or state assumptions before implementation.",
         "Use --mode ai when a cloud environment needs OpenAI to generate the final structured plan without Codex.",
     ]
+    warnings.append("Current Go documentation takes precedence over inventory/API summaries for declarations; policy still applies. "
+                    f"Loaded {context.go_documentation['selected_count']} of {context.go_documentation['package_count']} packages. "
+                    "Use go-docs --package/--symbol to inspect omitted or truncated declarations.")
+    if context.go_documentation["missing_modules"]:
+        warnings.append("Missing Go checkouts: " + ", ".join(context.go_documentation["missing_modules"]))
     if suppress_new_backend_skeleton:
         warnings.insert(
             0,
@@ -797,7 +803,13 @@ def _local_packet(request: str, project_root: Path, requirements_file: Optional[
         inventory_matches=matches,
         related_contracts=related_contracts,
         domain_requirements=requirements,
-        source_evidence=_source_evidence(project_root, owner, related_contracts),
+        source_evidence=_source_evidence(project_root, owner, related_contracts) + [
+            SourceEvidence(
+                category="current_go_documentation", path=item["source_directory"],
+                symbols=[item["package"]],
+                finding=f"Current go doc; pkgsite: {item['pkgsite_url']}; documentation SHA-256: {item['sha256']}\n{item['documentation']}",
+            ) for item in context.go_documentation["packages"]
+        ],
         suggested_contract=suggested_contract,
         suggested_database_objects=suggested_database_objects,
         suggested_service_skeleton=suggested_service_skeleton,
@@ -904,7 +916,7 @@ def plan(
     try:
         if mode == "ai":
             settings = load_ai_settings(Path(".").resolve())
-            context = load_agent_context(settings.project_root)
+            context = load_agent_context(settings.project_root, request=request)
             client = CeeratOpenAIClient(api_key=settings.api_key, model=settings.model)
             result = build_ai_plan(
                 client=client,
@@ -1727,7 +1739,7 @@ def _verification_contract_and_service_payload(target: str) -> Dict[str, Any]:
 def _post_validation_checklist() -> List[str]:
     return [
         "Only after tests pass and a human validates behavior, update builder-agent standards if the platform pattern changed.",
-        "Update .ceerat-agent docs for durable builder knowledge: architecture, module-generation-standard, service-standards, security-rbac-standard, public-ai-integration-security-profile, and ai-tool-standard when relevant.",
+        "Maintain Go package/declaration comments in source; planning loads fresh go doc evidence automatically. Update .ceerat-agent only when architecture or security policy changes, not to copy API facts from a session.",
         "Update service docs for user-facing truth: api.md, api-testing.md, grpc-security.md, logging.md, architecture.md, and cookbook docs when relevant.",
         "Update inventories that describe the final surface: contract-inventory.json, grpc-service-inventory.json, app-surface-inventory.json when relevant.",
         "Run ceerat-builder check drift --output json and ceerat-builder check apps --output json after doc/inventory updates.",
@@ -1802,6 +1814,9 @@ def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
     scope = scope.lower().strip()
     workspace = _workspace_root(project_root)
     docs = {
+        "go": [
+            {"path": "infra/docs/go-documentation.md", "purpose": "Live Go docs: ceerat-builder go-docs; pkgsite reads the same workspace source."},
+        ],
         "builder": [
             {
                 "path": "ceerat-platform-builder-agent/.ceerat-agent/architecture.md",
@@ -1908,7 +1923,7 @@ def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
         ],
     }
     aliases = {
-        "all": ["builder", "service", "inventory", "apps"],
+        "all": ["go", "builder", "service", "inventory", "apps"],
         "builder-agent": ["builder"],
         "services": ["service"],
         "service-docs": ["service"],
@@ -1918,7 +1933,7 @@ def _docs_payload(project_root: Path, scope: str) -> Dict[str, Any]:
     selected = aliases.get(scope, [scope])
     unknown = [item for item in selected if item not in docs]
     if unknown:
-        raise ContextError("Unknown docs scope. Use all, builder, service, inventory, or apps.")
+        raise ContextError("Unknown docs scope. Use all, go, builder, service, inventory, or apps.")
     resolved: List[Dict[str, Any]] = []
     for key in selected:
         for doc in docs[key]:
@@ -2510,9 +2525,38 @@ def inventory_patch_hints(
     console.print(table)
 
 
+@app.command("go-docs")
+def go_docs(
+    request: str = typer.Argument("", help="Optional request used to rank current Go packages."),
+    package: Optional[str] = typer.Option(None, "--package", help="Exact local Go import path."),
+    symbol: Optional[str] = typer.Option(None, "--symbol", help="Optional Go symbol in --package."),
+    output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
+) -> None:
+    """Read fresh workspace package docs, the source used by local pkgsite."""
+    if output not in {"json", "table"}:
+        error_console.print("Error: --output must be json or table")
+        raise typer.Exit(code=2)
+    try:
+        payload = load_go_docs(project_root, request, package=package, symbol=symbol)
+    except GoDocsError as exc:
+        error_console.print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+    if output == "json":
+        _print_json(payload)
+        return
+    for item in payload["packages"]:
+        console.print(item["package"], markup=False)
+        console.print(item["pkgsite_url"], markup=False)
+        console.print(item["documentation"], markup=False)
+    console.print(f"Selected {payload['selected_count']} of {payload['package_count']} packages.")
+    if payload["missing_modules"]:
+        console.print("Missing checkouts: " + ", ".join(payload["missing_modules"]), markup=False)
+
+
 @app.command("docs")
 def docs(
-    scope: str = typer.Argument("all", help="Docs scope: all, builder, service, inventory, or apps."),
+    scope: str = typer.Argument("all", help="Docs scope: all, go, builder, service, inventory, or apps."),
     output: str = typer.Option("json", "--output", "-o", help="Output format: json or table."),
     project_root: Path = typer.Option(Path("."), "--project-root", help="Builder repo root."),
 ) -> None:
@@ -2967,6 +3011,8 @@ def check_context(
             {
                 "ok": True,
                 "architecture_context_bytes": len(context.architecture_context),
+                "go_documentation_packages": context.go_documentation["selected_count"],
+                "go_documentation_missing_modules": context.go_documentation["missing_modules"],
                 "system_prompt_bytes": len(context.system_prompt),
                 "planner_prompt_bytes": len(context.planner_prompt),
             },

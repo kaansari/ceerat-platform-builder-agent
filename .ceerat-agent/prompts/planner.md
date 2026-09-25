@@ -1,6 +1,6 @@
 Create a structured services-only implementation plan for the requested Ceerat backend capability.
 
-Use the loaded `.ceerat-agent` context and current platform patterns.
+Use fresh Go source documentation for API facts and the loaded `.ceerat-agent` documents for architecture and security policy. Never require a session-memory documentation refresh to discover current symbols.
 
 The plan must include:
 

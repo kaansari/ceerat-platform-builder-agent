@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+from ceerat_builder.go_docs import GoDocsError, format_go_docs, load_go_docs
 
 
 class ContextError(RuntimeError):
@@ -27,6 +30,7 @@ class AgentContext:
     architecture_context: str
     system_prompt: str
     planner_prompt: str
+    go_documentation: dict[str, Any]
 
 
 def _read_required_file(path: Path) -> str:
@@ -38,7 +42,7 @@ def _read_required_file(path: Path) -> str:
     return content
 
 
-def load_agent_context(project_root: Path) -> AgentContext:
+def load_agent_context(project_root: Path, request: str = "") -> AgentContext:
     agent_dir = project_root / ".ceerat-agent"
     if not agent_dir.is_dir():
         raise ContextError(f"Missing architecture docs directory: {agent_dir}")
@@ -52,7 +56,14 @@ def load_agent_context(project_root: Path) -> AgentContext:
         relative: _read_required_file(agent_dir / relative) for relative in PROMPTS
     }
 
+    try:
+        go_documentation = load_go_docs(project_root, request)
+    except GoDocsError as exc:
+        raise ContextError(str(exc)) from exc
+    docs.append(format_go_docs(go_documentation))
+
     return AgentContext(
+        go_documentation=go_documentation,
         architecture_context="\n\n---\n\n".join(docs),
         system_prompt=prompt_contents["prompts/system.md"],
         planner_prompt=prompt_contents["prompts/planner.md"],

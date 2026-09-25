@@ -74,8 +74,8 @@ Require the plan to cover:
   override fields;
 - read-only, destructive and idempotency annotations;
 - prepare/confirm/execute for consequential writes;
-- public-token-to-private-identity exchange without forwarding a general public
-  token as an internal credential;
+- original Keycloak access-token forwarding to the designated private gRPC
+  service, with independent service-side validation and no end-user token exchange;
 - sanitized audit correlation across MCP and gRPC;
 - client compatibility with standard MCP reserved metadata;
 - caller documentation and golden tests for Codex and ChatGPT when the tool is
@@ -901,6 +901,35 @@ ctx := security.WithAuthenticatedUser(context.Background(), &security.Authentica
     Role: "customer",
 })
 ```
+
+## Backend transport readiness and deployment verification
+
+For service changes affecting TLS, addresses, or required caller connectivity,
+include client configuration, trust distribution, probe behavior, and deployment
+order in `integration_impact`. Keep `/healthz` process-only; use a separate
+readiness endpoint for dependencies required to serve requests. The current
+Render portals use public `/readyz`, a fresh TLS/gRPC handshake per probe, a
+two-second timeout, generic 503 errors, and `Cache-Control: no-store`.
+
+Require real local TLS integration tests for a trusted certificate, wrong CA,
+wrong server name, and unreachable backend. Also establish readiness once,
+stop the backend from accepting new connections while existing connections
+remain open, and prove the next probe fails. This catches false readiness from
+cached gRPC connection state. Verify liveness remains available during failures
+and probe connections are closed. Use generated test certificates, not live
+credentials. Add deadline/cancellation coverage when changing timeout behavior.
+
+Validate the deployment health-check path against the deployed handler and the
+Render Blueprint schema. Deploy endpoint support before switching the platform
+probe. A client constructor succeeding, a TCP connection opening, or `/healthz`
+returning 200 does not verify TLS trust. A standard gRPC health RPC may be used
+only when the backend actually registers and supports it.
+
+Record local tests, Blueprint validation, live deployment status, and a real
+login/business smoke test as separate evidence. Do not call a pushed commit
+live, or transport readiness an end-to-end authentication check. The current
+portal handshake probes do not change backend method allowlists, invoke a
+business RPC, provision users, or require an OAuth credential.
 
 ## Documentation Required For Services
 

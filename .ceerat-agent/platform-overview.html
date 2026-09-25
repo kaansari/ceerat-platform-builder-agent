@@ -1,752 +1,185 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ceerat Platform Overview</title>
-  <style>
-    :root {
-      --ink: #1f2933;
-      --muted: #5f6b7a;
-      --line: #d7dee8;
-      --panel: #ffffff;
-      --wash: #f5f7fa;
-      --brand: #25635f;
-      --accent: #8b5cf6;
-      --warn: #b45309;
-      --good: #047857;
-      --shadow: 0 16px 40px rgba(31, 41, 51, 0.08);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background: var(--wash);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.55;
-    }
-
-    a {
-      color: var(--brand);
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    .page {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 34px 24px 64px;
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1.25fr 0.75fr;
-      gap: 24px;
-      align-items: stretch;
-      margin-bottom: 24px;
-    }
-
-    .hero-main,
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-    }
-
-    .hero-main {
-      padding: 32px;
-    }
-
-    .hero-side {
-      padding: 24px;
-    }
-
-    .eyebrow {
-      margin: 0 0 8px;
-      color: var(--brand);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    h1,
-    h2,
-    h3 {
-      margin: 0;
-      line-height: 1.15;
-    }
-
-    h1 {
-      max-width: 760px;
-      font-size: clamp(36px, 5vw, 62px);
-    }
-
-    h2 {
-      font-size: 25px;
-    }
-
-    h3 {
-      font-size: 17px;
-    }
-
-    p {
-      margin: 10px 0 0;
-    }
-
-    .lead {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 18px;
-    }
-
-    .grid {
-      display: grid;
-      gap: 16px;
-    }
-
-    .grid.two {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .grid.three {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .grid.four {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .panel {
-      padding: 22px;
-      margin-top: 18px;
-      break-inside: avoid;
-    }
-
-    .mini {
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-    }
-
-    .mini p {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .tag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      min-height: 28px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: #eef6f5;
-      color: var(--brand);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .rule {
-      margin-top: 16px;
-      padding: 14px 16px;
-      border-left: 4px solid var(--brand);
-      background: #eef6f5;
-      color: #174643;
-      border-radius: 4px;
-      font-weight: 650;
-    }
-
-    .warning {
-      border-left-color: var(--warn);
-      background: #fff7ed;
-      color: #7c2d12;
-    }
-
-    .good {
-      border-left-color: var(--good);
-      background: #ecfdf5;
-      color: #064e3b;
-    }
-
-    .diagram {
-      display: grid;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 8px;
-      align-items: center;
-    }
-
-    .flow-card {
-      min-height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      text-align: center;
-      font-weight: 750;
-      font-size: 14px;
-    }
-
-    .arrow {
-      color: var(--muted);
-      text-align: center;
-      font-weight: 800;
-    }
-
-    .lane {
-      display: grid;
-      grid-template-columns: 180px 1fr;
-      gap: 14px;
-      align-items: stretch;
-      margin-top: 12px;
-    }
-
-    .lane-name {
-      display: flex;
-      align-items: center;
-      padding: 14px;
-      border-radius: 8px;
-      background: #eef2ff;
-      color: #3730a3;
-      font-weight: 800;
-    }
-
-    .lane-body {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .box {
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      min-height: 78px;
-    }
-
-    .box strong {
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .box span,
-    li,
-    td {
-      color: var(--muted);
-    }
-
-    code {
-      padding: 2px 5px;
-      border-radius: 4px;
-      background: #edf1f5;
-      color: #243b53;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.92em;
-    }
-
-    pre {
-      overflow: auto;
-      margin: 14px 0 0;
-      padding: 16px;
-      border-radius: 8px;
-      background: #111827;
-      color: #f9fafb;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    table {
-      width: 100%;
-      margin-top: 14px;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    th,
-    td {
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      color: var(--ink);
-      background: #f8fafc;
-      font-weight: 800;
-    }
-
-    ul,
-    ol {
-      margin: 12px 0 0;
-      padding-left: 22px;
-    }
-
-    .toc {
-      display: grid;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .toc a {
-      display: block;
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      font-weight: 750;
-    }
-
-    .source-list {
-      columns: 2;
-    }
-
-    .source-list li {
-      break-inside: avoid;
-      margin-bottom: 6px;
-    }
-
-    .footer {
-      margin-top: 28px;
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-    }
-
-    @media (max-width: 900px) {
-      .hero,
-      .grid.two,
-      .grid.three,
-      .grid.four,
-      .flow,
-      .lane,
-      .lane-body {
-        grid-template-columns: 1fr;
-      }
-
-      .arrow {
-        transform: rotate(90deg);
-      }
-
-      .source-list {
-        columns: 1;
-      }
-    }
-
-    @media print {
-      body {
-        background: #fff;
-      }
-
-      .page {
-        max-width: none;
-        padding: 0;
-      }
-
-      .hero-main,
-      .panel,
-      .mini {
-        box-shadow: none;
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      .panel {
-        page-break-inside: avoid;
-      }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Ceerat architecture, OAuth and private TLS boundaries, deployment readiness, and current Go documentation workflow.">
+<title>Ceerat · Platform architecture</title>
+<style>
+:root{color-scheme:light;--bg:#f4f6f8;--paper:#fff;--ink:#172c36;--muted:#526570;--line:#d5dfe4;--teal:#086d65;--soft:#e9f5f2;--blue:#1754a1;--amber:#7b4b0c}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:1rem}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{color:var(--teal)}a:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:4px}.skip{position:absolute;left:1rem;top:-5rem;background:white;padding:1rem}.skip:focus{top:1rem;z-index:3}.layout{max-width:1320px;margin:auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px;padding:40px 28px}aside{align-self:start;position:sticky;top:32px}nav a{display:block;padding:9px 0;text-decoration:none;border-bottom:1px solid var(--line)}.brand{color:var(--teal);font-weight:800;letter-spacing:.15em;font-size:.8rem}main{min-width:0}header{padding:15px 0 32px;border-bottom:2px solid var(--ink)}h1{font-size:clamp(2.5rem,5vw,4.2rem);line-height:1.08;letter-spacing:-.045em;margin:14px 0 20px;max-width:780px}h2{font-size:1.65rem;letter-spacing:-.025em;margin:0 0 16px;line-height:1.25}h3{font-size:1.05rem;line-height:1.35;margin:0 0 8px}p{margin:0 0 16px}.lead{font-size:1.15rem;color:var(--muted);max-width:760px}.meta{font-size:.85rem;color:var(--muted)}section{padding:34px 0;border-bottom:1px solid var(--line)}.kicker{font-size:.75rem;font-weight:750;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px}.card p:last-child{margin-bottom:0}.note{padding:18px 20px;border-left:4px solid var(--teal);background:var(--soft);margin:20px 0}.note p:last-child{margin-bottom:0}.caution{background:#fff5e6;border-color:var(--amber)}.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:white}table{width:100%;border-collapse:collapse;text-align:left;font-size:.93rem}caption{text-align:left;padding:15px;font-weight:700}th,td{padding:14px 16px;border-top:1px solid var(--line);vertical-align:top}th{background:#edf2f5;font-weight:650}code{font: .88em/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}pre{background:#142c35;color:#edf7fa;border-radius:8px;padding:20px;overflow:auto;font-size:.87rem}pre code{font-size:inherit;overflow-wrap:normal}ul,ol{padding-left:23px;margin:10px 0 16px}li{margin:7px 0}.route{display:grid;grid-template-columns:1fr;gap:8px}.route .node{border:1px solid var(--line);border-radius:8px;background:white;padding:14px 18px}.route .arrow{color:var(--teal);text-align:center;font-size:.85rem;font-weight:650}.node small{display:block;color:var(--muted)}.backend{margin-top:16px;background:var(--soft);border:1px solid #96c9bd;border-radius:10px;padding:22px;text-align:center}.pills{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0}.pill{font-size:.8rem;padding:4px 10px;border:1px solid var(--line);border-radius:20px;background:white}details{border:1px solid var(--line);border-radius:8px;background:white;margin:12px 0;padding:16px 20px}summary{cursor:pointer;font-weight:650}details[open] summary{margin-bottom:14px}footer{padding:28px 0;color:var(--muted);font-size:.85rem}.links{columns:2;column-gap:28px}.links li{break-inside:avoid}.source{font-size:.85rem;color:var(--muted)}
+@media(max-width:850px){.layout{grid-template-columns:1fr;gap:18px;padding:20px}aside{position:static}nav{display:flex;flex-wrap:wrap;gap:8px 20px}nav a{padding:4px 0}.grid{grid-template-columns:1fr}.links{columns:1}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.layout{display:block;padding:0}aside,.skip{display:none}section{padding:20px 0}.card,table,.route{break-inside:avoid}pre{white-space:pre-wrap;background:#f3f5f7;color:#172c36}a{color:inherit}.grid{gap:10px}h1{font-size:32pt}}
+</style>
 </head>
 <body>
-  <main class="page">
-    <section class="hero">
-      <div class="hero-main">
-        <p class="eyebrow">Ceerat Builder Agent</p>
-        <h1>Platform Overview</h1>
-        <p class="lead">A single printable guide to the current Ceerat architecture, service boundaries, security model, UI ownership, AI tools, and builder workflow. This file summarizes the durable builder-agent markdown files so the whole system can be read in one place.</p>
-        <div class="tag-row">
-          <span class="tag">Services first</span>
-          <span class="tag">gRPC contracts</span>
-          <span class="tag">JWT/RBAC</span>
-          <span class="tag">Customer ownership</span>
-          <span class="tag">Career calendar</span>
-          <span class="tag">AI through APIs</span>
-          <span class="tag">Typesense behind services</span>
-          <span class="tag">Separate BI store</span>
-        </div>
-      </div>
-      <aside class="hero-main hero-side">
-        <p class="eyebrow">Reading Map</p>
-        <div class="toc">
-          <a href="#big-picture">1. Big Picture</a>
-          <a href="#components">2. Components</a>
-          <a href="#services">3. Services</a>
-          <a href="#security">4. Security</a>
-          <a href="#apps">5. Apps and UI</a>
-          <a href="#ai">6. AI Tools</a>
-          <a href="#career-search">7. Career + Calendar</a>
-          <a href="#builder">8. Builder Workflow</a>
-          <a href="#sources">9. Source Docs</a>
-        </div>
-      </aside>
-    </section>
+<a class="skip" href="#main">Skip to content</a>
+<div class="layout">
+<aside>
+<p class="brand">CEERAT / ENGINEERING</p>
+<nav aria-label="Page sections">
+<a href="#boundaries">Runtime boundaries</a>
+<a href="#components">Components &amp; ownership</a>
+<a href="#security">Identity &amp; authorization</a>
+<a href="#readiness">TLS &amp; readiness</a>
+<a href="#documentation">Source documentation</a>
+<a href="#workflow">Builder workflow</a>
+<a href="#references">References</a>
+</nav>
+</aside>
+<main id="main">
+<header>
+<p class="kicker">Platform overview</p>
+<h1>One backend authority.<br>Multiple application surfaces.</h1>
+<p class="lead">Browser portals and AI tools call protected backend services. Shared contracts define the API; backend services own business rules, authorization, and operational data.</p>
+<p class="meta">Updated 24 September 2026 · Architecture guide for the current checkout, not a live deployment report.</p>
+<div class="pills"><span class="pill">OAuth + PKCE</span><span class="pill">Private gRPC + TLS</span><span class="pill">Service-owned persistence</span><span class="pill">Go source documentation</span></div>
+</header>
 
-    <section id="big-picture" class="panel">
-      <p class="eyebrow">50,000 Foot View</p>
-      <h2>The Core Rule</h2>
-      <div class="rule">Apps and AI agents do not write directly to PostgreSQL. They call backend services. Backend services own persistence, migrations, business rules, security, RBAC, ownership checks, and logging.</div>
-      <div class="diagram">
-        <div class="flow">
-          <div class="flow-card">Users<br>Admins<br>Customers</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">Browser Apps</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">App Servers<br>Proxies</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">Backend Services</div>
-        </div>
-        <div class="flow">
-          <div class="flow-card">AI Agent<br>Service</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">Approved Tool<br>Calls</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">Backend gRPC</div>
-          <div class="arrow">→</div>
-          <div class="flow-card">PostgreSQL<br>OLTP</div>
-        </div>
-      </div>
-      <p>Business intelligence and AI insights should use copied/evented data in a separate BI database. Operational logs are for debugging, not reporting.</p>
-    </section>
+<section id="boundaries">
+<p class="kicker">01 / Request paths</p><h2>Separate entry points, shared service authority</h2>
+<p>Keycloak provides sign-in and delegated access tokens. Each caller passes the original token to the designated backend, which independently checks authorization.</p>
+<div class="grid" role="group" aria-label="Browser and public MCP request paths">
+<div class="route">
+<div class="node"><strong>Browser</strong><small>Keycloak authorization code + PKCE</small></div>
+<div class="arrow" aria-hidden="true">↓ HTTPS · HttpOnly session cookie</div>
+<div class="node"><strong>Customer · Admin · Agent portals</strong><small>Go app servers handle pages and same-origin HTTP routes.</small></div>
+<div class="arrow" aria-hidden="true">↓ Private gRPC · TLS · original bearer token</div>
+</div>
+<div class="route">
+<div class="node"><strong>ChatGPT · Codex · MCP hosts</strong><small>The host obtains and manages OAuth credentials.</small></div>
+<div class="arrow" aria-hidden="true">↓ MCP over HTTPS · bearer token</div>
+<div class="node"><strong>Public agent gateway</strong><small>Validates OAuth, tool inputs, scopes, and confirmations.</small></div>
+<div class="arrow" aria-hidden="true">↓ Private gRPC · TLS · original bearer token</div>
+</div>
+</div>
+<div class="backend"><strong>ceerat-user-service</strong><br>Verified identity → method scopes → RBAC → ownership → repositories<br><small>PostgreSQL business data is owned by the backend.</small></div>
+<p class="note">The agent portal also calls the private <code>ceerat-agent-service</code> for agent/admin chat. That service runs model workflows and invokes protected backend APIs. The public gateway has no LLM loop. The customer portal has no AI chat surface.</p>
+</section>
 
-    <section id="components" class="panel">
-      <p class="eyebrow">Workspace Shape</p>
-      <h2>Major Repositories and Responsibilities</h2>
-      <div class="grid three">
-        <div class="mini">
-          <h3><code>infra</code></h3>
-          <p>Local stack start/stop, environment wiring, logs, PIDs, database startup, and Makefile targets.</p>
-        </div>
-        <div class="mini">
-          <h3><code>contracts-repo</code></h3>
-          <p>Protobuf contracts, generated gRPC clients/servers, domain DTOs, mappers, and shared security hooks.</p>
-        </div>
-        <div class="mini">
-          <h3><code>services-repo</code></h3>
-          <p>Backend services. Currently the mature core is <code>ceerat-user-service</code>.</p>
-        </div>
-        <div class="mini">
-          <h3><code>apps-repo</code></h3>
-          <p>Admin UI, agent/web UI, customer UI, and the active AI agent service.</p>
-        </div>
-        <div class="mini">
-          <h3><code>ceerat-platform-builder-agent</code></h3>
-          <p>Codex discovery and consistency tool. Stores durable platform standards in <code>.ceerat-agent</code>.</p>
-        </div>
-        <div class="mini">
-          <h3>PostgreSQL</h3>
-          <p>OLTP source of truth for transactional data, owned through backend services.</p>
-        </div>
-        <div class="mini">
-          <h3>Typesense</h3>
-          <p>Optional local search index for Career jobs. It is configured from <code>infra/typesense.env</code> and reached only by <code>ceerat-user-service</code>.</p>
-        </div>
-      </div>
-    </section>
+<section id="components">
+<p class="kicker">02 / Ownership</p><h2>A workspace of sibling repositories</h2>
+<div class="table-wrap"><table>
+<caption>Repositories and responsibilities</caption>
+<thead><tr><th scope="col">Repository</th><th scope="col">Owns</th></tr></thead><tbody>
+<tr><th scope="row"><code>contracts-repo</code></th><td>Canonical protobuf contracts, generated Go APIs, domain DTOs, mappers, and shared security policies. No persistence implementation.</td></tr>
+<tr><th scope="row"><code>services-repo</code></th><td>The user service, domain handlers, repositories, database migrations, authorization, and service-owned operations.</td></tr>
+<tr><th scope="row"><code>apps-repo</code></th><td>Three browser portals, the public MCP gateway, and the private agent service. Its contracts copy supports standalone deployment builds.</td></tr>
+<tr><th scope="row"><code>infra</code></th><td>Local stack operation, Kubernetes configuration, Render Blueprint, deployment procedures, and the workspace documentation guide.</td></tr>
+<tr><th scope="row"><code>ceerat-platform-builder-agent</code></th><td>A Python planning CLI that reads current Go docs, inventories, and architecture/security policy. It does not own business persistence.</td></tr>
+</tbody></table></div>
+<div class="grid" style="margin-top:16px">
+<div class="card"><h3>Backend domains</h3><p>Account resolution, customers, catalog, carts, orders, careers, calendar, preferences, AI threads, and administration remain behind service-owned APIs. Consult current Go declarations and inventories for exact methods.</p><p>Customer profiles own shipping/billing addresses. Catalog APIs own products and carts. Order APIs own checkout and order transactions. Career APIs own job and resume workflows.</p></div>
+<div class="card"><h3>Data and search</h3><p>PostgreSQL is authoritative for operational business records. Typesense is derived search infrastructure managed by backend services; browsers and AI callers do not write its indexes directly.</p><p>Gateway confirmation, connection, and audit storage is separate from backend business records. It does not authorize direct gateway writes to customer or order tables.</p></div>
+</div>
+<p class="source">Details: <a href="../../apps-repo/docs/architecture.md">app architecture</a> · <a href="../../services-repo/services/ceerat-user-service/docs/architecture.md">backend architecture</a></p>
+</section>
 
-    <section id="services" class="panel">
-      <p class="eyebrow">Backend Service Boundary</p>
-      <h2><code>ceerat-user-service</code> Owns the Core Platform</h2>
-      <div class="grid two">
-        <div>
-          <h3>Runtime</h3>
-          <table>
-            <tr><th>Interface</th><th>Local endpoint</th></tr>
-            <tr><td>gRPC</td><td><code>localhost:50051</code></td></tr>
-            <tr><td>Admin operations</td><td><code>admin.AdminService</code> on gRPC</td></tr>
-          </table>
-        </div>
-        <div>
-          <h3>Owned Capabilities</h3>
-          <ul>
-            <li>Auth, token validation, users, account status.</li>
-            <li>Customer profiles, shipping/billing addresses, and customer ownership flows.</li>
-            <li>Service catalog, product catalog, and carts.</li>
-            <li>Orders, product/service lines, checkout, tax, shipping, coupons, address snapshots, and payment setup.</li>
-            <li>Career companies, jobs, skill profiles, resumes, reusable employment records, job carts, metrics, applications, and customer calendar events.</li>
-            <li>RBAC roles, permissions, cache, and admin hooks.</li>
-          </ul>
-        </div>
-      </div>
-      <h3 style="margin-top: 18px;">Registered gRPC Areas</h3>
-      <div class="grid four">
-        <div class="mini"><code>auth.Auth</code><p>Login, token validation, users.</p></div>
-        <div class="mini"><code>customer.CustomerService</code><p>Customer profiles, explicit shipping/billing addresses, and ownership.</p></div>
-        <div class="mini"><code>service.ServiceManager</code><p>Service catalog, product catalog, carts.</p></div>
-        <div class="mini"><code>order.OrderManager</code><p>Orders, checkout quotes, tax, shipping, coupons, repricing, and address snapshots.</p></div>
-        <div class="mini"><code>career.CareerProfileService</code><p>Skill profiles, skills, resumes, reusable employment records, PDF downloads, and customer Career metrics.</p></div>
-        <div class="mini"><code>career.JobService</code><p>Global companies/jobs, ATS import, job search, market metrics, and duplicate company validation.</p></div>
-        <div class="mini"><code>career.JobCartService</code><p>Customer saved-job cart with per-job resume selection.</p></div>
-        <div class="mini"><code>career.JobApplicationService</code><p>Resume-driven applications, provider discovery/submission, review workflow, and successful cart clearing.</p></div>
-        <div class="mini"><code>calendar.CalendarService</code><p>Customer-owned career calendar events and job/application follow-ups.</p></div>
-        <div class="mini"><code>ai.AIThreadService</code><p>Sanitized agent/customer AI chat history.</p></div>
-      </div>
-      <div class="rule good">Product catalog, carts, and catalog/item discounts belong to <code>service.ServiceManager</code>. Checkout finalization, tax, shipping, order coupons, and repricing belong to <code>order.OrderManager</code>; customer shipping/billing addresses belong to <code>customer.CustomerService</code>. Career belongs to <code>proto/career</code>; companies/jobs are global, ATS import uses <code>career.JobService/ImportATSJobs</code>, job search stays behind <code>career.JobService/SearchJobs</code>, metrics use service-owned read models, employment records attach to resumes through CareerProfile APIs, and resume downloads stay in <code>career.CareerProfileService</code>. Calendar belongs to <code>proto/calendar</code> as <code>calendar.CalendarService</code>. AI chat thread history belongs to <code>proto/ai</code> as <code>ai.AIThreadService</code>. New work should check inventories before inventing a new owner.</div>
-    </section>
+<section id="security">
+<p class="kicker">03 / Security</p><h2>Authentication does not grant business access</h2>
+<ol>
+<li><strong>Keycloak authenticates the person.</strong> It owns passwords, recovery, email verification, and social identity linking.</li>
+<li><strong>The caller validates its entry point.</strong> Browser portals enforce their session rules; the public gateway validates its OAuth resource audience, client, and tool scopes.</li>
+<li><strong>The backend validates the original access token.</strong> It checks signature, issuer, API audience, approved client, lifetime, subject, and exact method scopes. It resolves verified issuer/subject identity to the Ceerat account.</li>
+<li><strong>RBAC and ownership authorize the operation.</strong> Role and account status determine access; handlers and repositories constrain records to the authenticated owner.</li>
+</ol>
+<div class="table-wrap"><table><caption>Portal session boundaries</caption><thead><tr><th scope="col">Portal</th><th scope="col">Required account</th><th scope="col">Purpose</th></tr></thead><tbody>
+<tr><th scope="row">Customer UI</th><td>Active customer with an owned customer profile</td><td>Customer self-service</td></tr>
+<tr><th scope="row">Admin UI</th><td>Active admin</td><td>Users, roles, RBAC, administration</td></tr>
+<tr><th scope="row">Agent UI (<code>ceerat-web-ui</code>)</th><td>Active agent or admin; agent registration starts pending</td><td>Operational workflows and agent/admin chat</td></tr>
+</tbody></table></div>
+<div class="note"><strong>Preserve the credential boundary.</strong> Forward the original Keycloak access token only to the designated service. Do not mint a second end-user JWT, exchange caller-supplied identity for access, or add password API fallbacks. HttpOnly cookies prevent JavaScript from reading the token; the browser still transports the cookie.</div>
+<p>Do not put tokens, cookies, OAuth codes/state/verifiers, passwords, or private keys into model prompts, public responses, or logs. Keep sanitized failure-stage diagnostics server-side. A role or owner supplied in a request is not authority.</p>
+<p class="source"><a href="security-rbac-standard.md">Security and RBAC standard</a> · <a href="public-ai-integration-security-profile.md">Public AI security profile</a></p>
+</section>
 
-    <section id="security" class="panel">
-      <p class="eyebrow">Security Model</p>
-      <h2>JWT, RBAC, Then Ownership</h2>
-      <div class="flow" style="grid-template-columns: repeat(9, minmax(0, 1fr));">
-        <div class="flow-card">JWT<br>Interceptor</div>
-        <div class="arrow">→</div>
-        <div class="flow-card">RBAC<br>Interceptor</div>
-        <div class="arrow">→</div>
-        <div class="flow-card">Logging<br>Interceptor</div>
-        <div class="arrow">→</div>
-        <div class="flow-card">Handler<br>Checks</div>
-        <div class="arrow">→</div>
-        <div class="flow-card">Repository<br>Scope</div>
-      </div>
-      <div class="grid two">
-        <div class="mini">
-          <h3>RBAC Answers</h3>
-          <p>Can this role call this method?</p>
-          <pre>/package.Service/Method</pre>
-        </div>
-        <div class="mini">
-          <h3>Ownership Answers</h3>
-          <p>Can this authenticated user access this exact record?</p>
-          <pre>WHERE id = ? AND user_id = ?</pre>
-        </div>
-      </div>
-      <h3 style="margin-top: 18px;">Critical Rules</h3>
-      <ul>
-        <li>Public methods must be rare: login, registration, token validation, and health checks.</li>
-        <li>Customer-owned Career and calendar data resolves from JWT user id to <code>customers.user_id</code>; do not trust customer-supplied <code>customer_id</code>.</li>
-        <li>Employment attachment flows verify ownership of both the resume and the reusable employment record.</li>
-        <li>Resume update/delete/download flows fetch by authenticated customer id plus resume id; exports include profile skills and attached employment records.</li>
-        <li>Customer job application submission is resume-driven. The service validates resume ownership and derives any internal profile linkage from the selected resume.</li>
-        <li>Calendar event list/create/update/delete methods are protected customer self-service operations; they are not public browser endpoints.</li>
-        <li>Job search requests from customer surfaces are forced to open jobs; do not trust browser-supplied status for customer search.</li>
-        <li>Market/customer Career metrics are protected service-owned aggregates; apps must not compute broad counts from paginated search or direct database access.</li>
-        <li>Typesense API keys stay server-side in <code>ceerat-user-service</code>; frontend and AI tools must never call Typesense directly.</li>
-        <li>Customer tools and pages must be self-service only.</li>
-        <li>Admin-only operations remain admin-only even if an AI tool would make them convenient.</li>
-        <li>Do not fix permission errors by widening RBAC without checking portal role/session ownership first.</li>
-      </ul>
-    </section>
+<section id="readiness">
+<p class="kicker">04 / Deployment</p><h2>Verify the backend connection before accepting traffic</h2>
+<p>Render public HTTPS and private backend TLS are separate connections. Each production client must trust the CA that signed the backend certificate and verify its server name. Private networking alone provides neither authentication nor certificate trust.</p>
+<div class="grid">
+<div class="card"><h3><code>GET /healthz</code> · Liveness</h3><p>The portal process can respond. This stays independent of downstream availability and does not establish that login or backend calls work.</p></div>
+<div class="card"><h3><code>GET /readyz</code> · Transport readiness</h3><p>Each portal opens a fresh gRPC connection with its configured TLS credentials, completes TLS and HTTP/2 handshakes, and closes the probe connection. Success returns 200; failure returns generic 503 within two seconds.</p></div>
+</div>
+<p class="note">The Render Blueprint uses <code>/readyz</code> for customer, admin, and agent portals. A cached gRPC Ready state is insufficient. Gateway and agent-service health endpoints do not automatically inherit this behavior.</p>
+<details><summary>Why the certificate mismatch broke login</summary><p>The customer portal could not verify the user service certificate and logged <code>x509: certificate signed by unknown authority</code>. It displayed an account-required message even though transport failed before account validation. Correcting the CA restored login. A process-only health check had not detected the mismatch.</p></details>
+<details><summary>Provisioning and rotating certificates</summary><ul>
+<li><code>render.yaml</code> specifies paths; Render secret files provide contents. Setting <code>/etc/secrets/ceerat-grpc-ca.pem</code> does not upload or synchronize that file.</li>
+<li>Clients need the public CA certificate. Keep backend private keys and CA signing keys outside Git and out of client deployments. A PEM extension alone does not indicate a secret.</li>
+<li>A shared CA-only environment group is the recommended distribution pattern; it has not been established here as a verified deployment fact.</li>
+<li>Reuse signing material on routine deployment. For CA rotation, distribute overlapping trust first, redeploy clients, rotate the server certificate, verify fresh connections, then remove old trust and redeploy.</li>
+<li>Monitor expiry separately. Never fix trust failures by disabling TLS verification.</li>
+</ul></details>
+<p>Readiness is a transport check, not an OAuth, database, or end-to-end business test. Backend outages also make running portals unready; account for the hosting platform’s health-check policy. Keep local test results, pushed commits, live rollout, and successful login as separate evidence.</p>
+<p class="source"><a href="../../infra/deploy/render/README.md">Render operations</a> · <a href="service-standards.md">Readiness verification requirements</a></p>
+</section>
 
-    <section id="apps" class="panel">
-      <p class="eyebrow">Apps and UI Ownership</p>
-      <h2>Browser Apps Are Proxies, Not Data Owners</h2>
-      <div class="lane">
-        <div class="lane-name">Admin UI<br><code>:3010</code></div>
-        <div class="lane-body">
-          <div class="box"><strong>Owns</strong><span>Users, roles, RBAC, cache refresh, operational controls.</span></div>
-          <div class="box"><strong>Depends on</strong><span>Same-origin app routes backed by <code>admin.AdminService</code> gRPC.</span></div>
-          <div class="box"><strong>Does not own</strong><span>Career workspace or customer self-service.</span></div>
-          <div class="box"><strong>Rule</strong><span>Admin role/system account protections stay strict.</span></div>
-        </div>
-      </div>
-      <div class="lane">
-        <div class="lane-name">Web UI<br><code>:3000</code></div>
-        <div class="lane-body">
-          <div class="box"><strong>Owns</strong><span>Agent operational dashboard, orders, tax/shipping/coupon rules, repricing, agent Career pages, AI Agent panel.</span></div>
-          <div class="box"><strong>Session</strong><span>Active agent only.</span></div>
-          <div class="box"><strong>Chat</strong><span>Forwards to <code>/agent/chat</code>.</span></div>
-          <div class="box"><strong>Threads</strong><span>Uses <code>/api/agent/threads</code> -> <code>/agent/threads</code>.</span></div>
-          <div class="box"><strong>Career</strong><span>Uses <code>/api/agent/career/*</code>.</span></div>
-        </div>
-      </div>
-      <div class="lane">
-        <div class="lane-name">Customer UI<br><code>:3005</code></div>
-        <div class="lane-body">
-          <div class="box"><strong>Owns</strong><span>Customer registration, profile and addresses, products/cart/checkout, orders, Career self-service, customer AI chat.</span></div>
-          <div class="box"><strong>Session</strong><span>Active customer only.</span></div>
-          <div class="box"><strong>Chat</strong><span>Forwards to <code>/customer/chat</code>.</span></div>
-          <div class="box"><strong>Threads</strong><span>Uses shared browser path <code>/api/agent/threads</code> -> <code>/customer/threads</code>.</span></div>
-          <div class="box"><strong>Career</strong><span>Uses <code>/api/customer/career/*</code>.</span></div>
-          <div class="box"><strong>Jobs</strong><span><code>/customer/career/jobs</code> lists/searches; <code>/customer/career/jobs/{id}</code> shows details.</span></div>
-          <div class="box"><strong>Calendar</strong><span><code>/customer/career/calendar</code> uses same-origin calendar APIs backed by <code>calendar.CalendarService</code>.</span></div>
-          <div class="box"><strong>Resume Import</strong><span><code>/customer/career/resumes/import</code> parses text/markdown, reviews the draft, then imports through CareerProfile APIs.</span></div>
-          <div class="box"><strong>Commerce</strong><span><code>/preferences</code> manages explicit shipping/billing addresses; checkout quotes coupon, shipping, shipping-state tax, and total through <code>order.OrderManager</code>.</span></div>
-        </div>
-      </div>
-    </section>
+<section id="documentation">
+<p class="kicker">05 / Documentation</p><h2>Read the checkout, not a session-memory snapshot</h2>
+<p>The builder loads fresh <code>go list</code> and <code>go doc</code> output for each plan. These commands read the same package comments and declarations rendered by <code>pkgsite</code>. A running documentation server is optional for planning.</p>
+<div class="grid">
+<div class="card"><h3>Source facts</h3><p>Go package and declaration comments own API names, signatures, fields, and package responsibilities. Generated APIs derive from proto source. Inventories help discovery; current declarations take precedence for API facts.</p></div>
+<div class="card"><h3>Architecture and policy</h3><p>Markdown standards own security rules, service boundaries, and operational decisions. Update them when policy changes. If source and policy disagree, report the discrepancy; do not silently weaken the policy.</p></div>
+</div>
+<pre><code># Run from ceerat-platform-builder-agent
+ceerat-builder go-docs "customer profile" --output json
+ceerat-builder go-docs \
+  --package github.com/kaansari/ceerat-contracts/proto/customer \
+  --symbol CustomerProfilePatch --output table
+ceerat-builder plan "update customer profile" --output json
+ceerat-builder check-context</code></pre>
+<p>Both local packets and AI context receive the fresh docs. Local packets use <code>source_evidence</code> with category <code>current_go_documentation</code>. Each result includes source paths, a documentation SHA-256, a pkgsite link, and truncation status.</p>
+<details><summary>Selection, limits, and failure handling</summary><p>The loader considers canonical contracts, the user service, gateway, private agent service, and all three portals. It selects up to eight packages by request relevance and includes up to 12,000 documentation characters per package. Missing checkouts and truncated output are explicit. Use package/symbol lookup when more detail is needed.</p><p>Each Go command has a 30-second timeout. Module resolution is readonly and offline; dependencies must already be available. Missing Go or an unusable workspace causes an actionable error, not a fallback to old session notes. Source documentation is not proof of live deployment.</p></details>
+<details><summary>Set up the workspace and browse package docs</summary>
+<p>Run from the parent containing the sibling repositories. For a new workspace only:</p>
+<pre><code>go work init \
+  contracts-repo/packages/ceerat-contracts \
+  services-repo/services/ceerat-user-service</code></pre>
+<p>Extend an existing workspace without deleting other entries:</p>
+<pre><code>go work use \
+  contracts-repo/packages/ceerat-contracts \
+  services-repo/services/ceerat-user-service \
+  apps-repo/ai/ceerat-agent-gateway \
+  apps-repo/ai/ceerat-agent-service \
+  apps-repo/apps/ceerat-admin-ui \
+  apps-repo/apps/ceerat-customer-ui \
+  apps-repo/apps/ceerat-web-ui
 
-    <section id="ai" class="panel">
-      <p class="eyebrow">AI Tooling</p>
-      <h2>One Agent Service, Separate Tool Surfaces</h2>
-      <div class="grid two">
-        <div class="mini">
-          <h3>Agent/Admin Chat</h3>
-          <pre>ceerat-web-ui
-  -> /api/agent/chat
-  -> ceerat-agent-service /agent/chat
-  -> ai.AIThreadService THREAD_PROFILE_AGENT
-  -> ToolRunner.Run
-  -> agent/admin tools</pre>
-          <p>Tools include customers, services, orders, companies, jobs, career metrics, resume download actions, and application review operations.</p>
-        </div>
-        <div class="mini">
-          <h3>Customer Chat</h3>
-          <pre>ceerat-customer-ui
-  -> /api/chatgpt-client/get-prompt-result
-  -> ceerat-agent-service /customer/chat
-  -> ai.AIThreadService THREAD_PROFILE_CUSTOMER
-  -> ToolRunner.RunCustomer
-  -> customer-safe tools</pre>
-          <p>Tools include customer profile, skill profiles, resume text parse/import, resumes, resume PDF download, career metrics, job search, job cart, and own applications.</p>
-        </div>
-      </div>
-      <div class="rule good"><code>search_jobs</code> returns compact job summaries only. It defaults to 10 results, is capped at 20, and excludes full descriptions. Customer-visible lists show title, company, location, posting date when available, and a <code>More info</code> link to <code>source_url</code>; they must not show internal GUIDs. Preserve the number-to-<code>job_id</code> mapping in hidden <code>ceerat_job_refs</code> metadata and use <code>get_job</code> with that internal id only.</div>
-      <div class="rule good">Customer resume text uploads in chat are transient: the customer UI forwards text/markdown attachment content to <code>ceerat-agent-service</code> only for the current turn, the assistant uses <code>parse_resume_text</code> then <code>import_resume_draft</code>, and persisted AI thread history stores only the normal user message plus final assistant reply.</div>
-      <div class="rule good">Persisted AI history stores only sanitized user and final assistant messages. System prompts, tool calls, raw tool results, JWTs, and request metadata must not be stored in thread history.</div>
-      <div class="rule warning">The AI tool layer is not the security boundary. Tools execute with the user's Ceerat JWT, and backend services still enforce JWT, RBAC, ownership, and repository scoping.</div>
-      <h3 style="margin-top: 18px;">Customer Chat Smoke Test</h3>
-      <ol>
-        <li>Log in to <code>ceerat-customer-ui</code> as an active customer.</li>
-        <li>Open <code>http://localhost:3005/chatgpt-client/</code> or the customer chat launcher.</li>
-        <li>Ask “who am I” and confirm <code>get_my_customer_profile</code> succeeds.</li>
-        <li>Ask “list my skills” and confirm <code>list_my_skill_profiles</code> succeeds.</li>
-        <li>Confirm an agent/admin account cannot keep a customer portal session.</li>
-      </ol>
-    </section>
+go install golang.org/x/pkgsite/cmd/pkgsite@latest
+pkgsite -http=127.0.0.1:6060</code></pre>
+<p>Include only the canonical contracts module, not the app deployment copy with the same module path. Keep the Python builder outside go.work. Installation may require network access; normal builder documentation reads do not download modules. See the <a href="../../infra/docs/go-documentation.md">full workspace guide</a> for replacement conflicts and PATH setup.</p>
+</details>
+<p><a href="http://127.0.0.1:6060">Open local pkgsite</a> <span class="meta">— available when you run the server on this machine.</span></p>
+</section>
 
-    <section id="career-search" class="panel">
-      <p class="eyebrow">Career Search, Calendar, and Recent Updates</p>
-      <h2>Job Search Uses a Service-Owned Typesense Integration</h2>
-      <div class="grid two">
-        <div>
-          <h3>Runtime Setup</h3>
-          <table>
-            <tr><th>Item</th><th>Current local setup</th></tr>
-            <tr><td>Config</td><td><code>infra/typesense.env</code></td></tr>
-            <tr><td>Docker compose</td><td><code>infra/docker-compose.typesense.yml</code></td></tr>
-            <tr><td>Container</td><td><code>ceerat-typesense</code></td></tr>
-            <tr><td>URL</td><td><code>http://localhost:8108</code></td></tr>
-            <tr><td>Collection</td><td><code>jobs</code></td></tr>
-            <tr><td>Rebuild API</td><td><code>admin.AdminService/RebuildJobSearchIndex</code></td></tr>
-          </table>
-        </div>
-        <div>
-          <h3>Search Flow</h3>
-          <ol>
-            <li>Customer opens <code>/customer/career/jobs</code>.</li>
-            <li>Browser calls same-origin <code>GET /api/jobs/search</code>.</li>
-            <li><code>ceerat-customer-ui</code> forwards the request to <code>career.JobService/SearchJobs</code>.</li>
-            <li><code>ceerat-user-service</code> searches Typesense when enabled and falls back to Postgres when unavailable.</li>
-            <li>Customers receive open jobs only, with total/page metadata and customer-friendly facets.</li>
-          </ol>
-        </div>
-      </div>
-      <h3 style="margin-top: 18px;">Customer Search Surface</h3>
-      <div class="grid three">
-        <div class="mini"><h3>Primary Filters</h3><p>Keyword and location stay visible first for mobile simplicity.</p></div>
-        <div class="mini"><h3>More Filters</h3><p>Company, work mode, employment type, department, seniority, skills, country, source, and sort live in an expandable area.</p></div>
-        <div class="mini"><h3>Facets</h3><p>Facet chips show labels and counts such as <code>Databricks (784)</code> and <code>Remote (161)</code>. UI copy does not mention Typesense.</p></div>
-      </div>
-      <div class="rule">Indexed job dimensions include company, location, locations, country, remote, hybrid, onsite, employment type, department, seniority, skills, source, and status. Negative boolean work-mode buckets such as false remote/hybrid/onsite values should be hidden from customer-facing facets.</div>
-      <h3 style="margin-top: 18px;">Other Recent Career Changes</h3>
-      <ul>
-        <li>Customer Career home is a simple navigation hub with cards for jobs, calendar, resumes, skill profiles, job cart, and applications.</li>
-        <li>Career pages follow separate list, create, detail, and edit routes with consistent navigation, breadcrumb, and back actions.</li>
-        <li>Reusable employment records are customer-owned Career records. Resumes attach them through join records instead of duplicating employment history per resume.</li>
-        <li>Resume text upload/import is service-owned by <code>CareerProfileService</code>: customer UI uses <code>/customer/career/resumes/import</code> and same-origin parse/import endpoints; clients parse text or markdown through <code>ParseResumeText</code>, then persist reviewed drafts through <code>ImportResumeDraft</code> or focused batch CareerProfile RPCs.</li>
-        <li>Job cart and application submission are resume-driven at the customer surface. Saved cart items keep a selected resume, applications derive internal profile linkage from that resume, and <code>ApplyToCartJobs</code> clears the cart only after every application succeeds.</li>
-        <li>Customer application lists link each job to its detail page. Follow-up calendar actions create event titles that include the job title and company name.</li>
-        <li>Customer calendar events are service-owned by <code>calendar.CalendarService</code>; the customer UI calendar page calls same-origin APIs that forward to the calendar gRPC service.</li>
-        <li>Career market and customer workflow KPIs come from service-owned aggregate/read-model APIs, not app-side broad count queries.</li>
-        <li>ATS crawlers import universal jobs through <code>ImportATSJobs</code> with an agent token; they do not write directly to Postgres or Typesense.</li>
-        <li>Resume view/download includes profile skills and attached employment records, keeps profile content first, and avoids pipe separators in export text.</li>
-        <li>Greenhouse application flow remains discover, confirm, then submit or manual fallback. UI, crawlers, and AI tools do not submit directly to external ATS providers.</li>
-      </ul>
-    </section>
+<section id="workflow">
+<p class="kicker">06 / Planning</p><h2>Discover → decide → verify</h2>
+<ol>
+<li><strong>Discover the current owner.</strong> Read fresh package docs, then inspect contracts and inventories. Do not infer that a missing search result means a capability is absent.</li>
+<li><strong>Choose the smallest service change.</strong> Reuse existing RPCs when appropriate. Keep backend persistence, identity, scope, and ownership rules explicit. App and AI changes are integration impact for this services-focused builder.</li>
+<li><strong>Verify behavior at the relevant boundary.</strong> Run focused tests, contract generation checks, inventory drift checks, and deployment probes where applicable. A green documentation command is not an application test.</li>
+<li><strong>Maintain the right source.</strong> Update package comments and proto source with code. Update architecture/security policy only for changed boundaries or rules; do not copy API declarations into session-maintained summaries.</li>
+</ol>
+<p class="source"><a href="../README.md">Builder CLI guide</a> · <a href="module-generation-standard.md">Module planning standard</a></p>
+</section>
 
-    <section id="builder" class="panel">
-      <p class="eyebrow">Builder Workflow</p>
-      <h2>How Codex Should Use the Builder</h2>
-      <div class="grid three">
-        <div class="mini">
-          <h3>1. Discover</h3>
-          <p>Read context and inventories before planning.</p>
-          <pre>ceerat-builder codex-context
-ceerat-builder inventory services
-ceerat-builder inventory contracts
-ceerat-builder inventory apps</pre>
-        </div>
-        <div class="mini">
-          <h3>2. Decide</h3>
-          <p>Use standards and evidence to decide ownership, APIs, security, and tests.</p>
-          <pre>ceerat-builder patterns service
-ceerat-builder patterns grpc-security
-ceerat-builder evidence request "..."</pre>
-        </div>
-        <div class="mini">
-          <h3>3. Verify</h3>
-          <p>Run targeted builds/tests and drift checks before updating standards.</p>
-          <pre>ceerat-builder verify ...
-ceerat-builder check drift
-ceerat-builder check apps</pre>
-        </div>
-      </div>
-      <div class="rule">Durable builder docs should be updated only after implementation, tests/builds, builder checks, and human validation confirm the pattern is reusable.</div>
-      <div class="rule">Noise rule: treat words like integrate, wire, connect, upgrade, implement, expose, fix, support, and enable as action verbs, not domain names. When inventories already contain a matching RPC or service owner, suppress speculative new proto, database, repository, and service skeleton proposals and focus on the existing owner, callers, RBAC, docs, and verification.</div>
-    </section>
-
-    <section id="sources" class="panel">
-      <p class="eyebrow">Source of This Overview</p>
-      <h2>Builder-Agent Documents</h2>
-      <p>This HTML is a readable rollup. The markdown and JSON files remain the operational source material for Codex and the builder tool.</p>
-      <ul class="source-list">
-        <li><code>.ceerat-agent/architecture.md</code></li>
-        <li><code>.ceerat-agent/service-standards.md</code></li>
-        <li><code>.ceerat-agent/security-rbac-standard.md</code></li>
-        <li><code>.ceerat-agent/ui-standard.md</code></li>
-        <li><code>.ceerat-agent/ai-tool-standard.md</code></li>
-        <li><code>.ceerat-agent/module-generation-standard.md</code></li>
-        <li><code>.ceerat-agent/prompts/system.md</code></li>
-        <li><code>.ceerat-agent/prompts/planner.md</code></li>
-        <li><code>.ceerat-agent/domain-requirements.json</code></li>
-      </ul>
-      <h3 style="margin-top: 18px;">Useful Local Logs</h3>
-      <pre>logs/user-service.log
-logs/postgres.log
-logs/web-ui.log
-logs/customer-ui.log
-logs/admin-ui.log
-logs/agent-service.log</pre>
-    </section>
-
-    <p class="footer">Ceerat Platform Overview. Printable summary generated from builder-agent standards.</p>
-  </main>
+<section id="references">
+<p class="kicker">07 / Further reading</p><h2>Follow the owning document</h2>
+<ul class="links">
+<li><a href="architecture.md">Builder architecture</a></li>
+<li><a href="security-rbac-standard.md">Security and RBAC</a></li>
+<li><a href="public-ai-integration-security-profile.md">Public AI security profile</a></li>
+<li><a href="service-standards.md">Service standards</a></li>
+<li><a href="ui-standard.md">Portal standards</a></li>
+<li><a href="../../apps-repo/docs/architecture.md">Apps and gateway architecture</a></li>
+<li><a href="../../services-repo/services/ceerat-user-service/docs/architecture.md">Backend architecture</a></li>
+<li><a href="../../infra/docs/go-documentation.md">Go workspace and pkgsite</a></li>
+<li><a href="../../infra/deploy/render/README.md">Render deployment runbook</a></li>
+<li><a href="../README.md">Builder commands and limitations</a></li>
+</ul>
+</section>
+<footer>This page summarizes responsibilities and trust boundaries. Use current source documentation for exact APIs and deployment evidence for live status. No external scripts or fonts are required to view this page.</footer>
+</main>
+</div>
 </body>
 </html>

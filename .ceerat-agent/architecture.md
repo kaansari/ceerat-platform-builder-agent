@@ -112,6 +112,32 @@ Backend services
 
 Existing app and AI callers are documented in inventories for compatibility checks, but this builder does not design those surfaces.
 
+## Source documentation workspace
+
+Builder planning loads fresh Go documentation from the current sibling workspace
+through `go list` and `go doc`, the same package comments and declarations used
+by pkgsite. `ceerat_builder/go_docs.py` discovers canonical modules and selects
+bounded request-relevant documentation. Local packets expose it as source
+evidence; AI plans receive it as context. `go-docs --package --symbol` provides
+explicit lookup. No running pkgsite server or session-memory documentation
+snapshot is required.
+
+Use `go work init` only for a new parent workspace, and `go work use` to preserve
+existing entries while adding contracts, the user service, gateway, agent
+service, and portals. Do not include both copies of the contracts module.
+See `infra/docs/go-documentation.md` for setup and browsing. The Python builder
+stays outside go.work. Dependency preparation is separate: documentation loading
+uses readonly offline module resolution and fails visibly if it cannot read the
+current checkout. Missing/truncated evidence is reported and does not establish
+that a capability is absent.
+
+Source comments and declarations own Go API facts; inventories aid discovery.
+Architecture/security standards remain normative policy, and READMEs explain
+setup and operations. Report source/policy discrepancies explicitly. Change
+these standards only when policy or boundaries change, not to copy declarations
+from a conversation. Neither local documentation nor a pkgsite page proves a
+live deployment's behavior.
+
 ## Validated Public Agent Gateway Boundary
 
 The Phase 1 public-agent interoperability milestone was validated on 2026-08-31
@@ -131,9 +157,10 @@ architecture rules when a service change is exposed to an external model:
 - Identity and ownership IDs come from the validated principal. External tool
   inputs must not accept `user_id`, `customer_id`, role or scopes for self-service
   operations.
-- Public OAuth tokens are not general internal service credentials. Adapt them
-  to an authenticated, narrow internal assertion or exchange and preserve
-  service RBAC plus repository ownership checks.
+- Forward the original Keycloak access token only to the designated private
+  CEERAT gRPC service. That service independently validates its canonical API
+  audience, issuer, client, subject, scopes, RBAC, and ownership. Do not mint or
+  exchange an internal end-user token; see the canonical security profile.
 - MCP input schemas must allow reserved protocol metadata such as
   `params._meta` while rejecting other unknown application fields.
 - The gateway must enforce those closed schemas at runtime for public,
@@ -169,6 +196,44 @@ connection tools only. Automatic Keycloak-registration-to-CEERAT provisioning,
 durable shared gateway state, and gateway workload authentication are
 implemented. Authorization-server session revocation integration and the
 remaining Phase 1 security acceptance gates are still required.
+
+## Private TLS and deployment readiness
+
+Browser portals terminate public HTTP at the app server and call the private
+`ceerat-user-service` over gRPC. Render's public HTTPS certificate does not
+establish trust for that separate private connection. Production callers must
+verify the backend certificate chain and configured server name against the
+CA that signed the backend certificate. Private networking does not replace
+TLS or OAuth authorization.
+
+The Render customer, admin, and agent (`ceerat-web-ui`) portal implementation
+separates `/healthz` process liveness from `/readyz` backend transport readiness.
+Each readiness probe opens a fresh gRPC connection using the application's
+backend target and cloned transport credentials, completes TLS and HTTP/2
+handshakes, and closes the probe connection. It returns 200 on success or 503
+on failure, with a two-second deadline. The Blueprint selects `/readyz` for
+these three portals. Creating a lazy gRPC client or inspecting an established
+connection's cached Ready state is not sufficient deployment evidence.
+
+Readiness verifies transport only: it does not establish OAuth validity,
+account activation, database availability, or successful business operations.
+Backend outages also affect ongoing readiness; document the deployment
+platform's response before extending this policy to other dependencies.
+Kubernetes liveness should remain independent of downstream availability.
+
+`infra/render.yaml` owns deployment configuration and certificate file paths;
+Render secret files supply their contents separately. A path declaration does
+not provision or synchronize a certificate. A shared CA-only environment group
+is the recommended distribution pattern for backend clients, not an assertion
+that such a group is already configured. Keep backend private keys separate.
+See `security-rbac-standard.md` for trust/rotation rules and
+`service-standards.md` for verification requirements.
+
+Evidence: the user confirmed login recovery after correcting the client CA.
+The readiness implementation passed all three portal test suites and Blueprint
+validation and was pushed as `apps-repo` commit `7225480` and `infra` commit
+`ee26ddf`. Live rollout of those commits was not verified in that change.
+Operational details remain in `infra/deploy/render/README.md`.
 
 ## Dependency Rules
 

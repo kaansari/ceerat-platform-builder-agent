@@ -522,7 +522,7 @@ Connection rules:
 
 - The client connects to `CEERAT_USER_SERVICE_ADDR`, defaulting locally to `localhost:50051`.
 - The older `USER_SERVICE_ADDR` fallback may exist for compatibility, but new docs and setup should prefer `CEERAT_USER_SERVICE_ADDR`.
-- Local development currently uses insecure gRPC transport. Production hardening should move toward TLS/mTLS without changing tool semantics.
+- Production private gRPC requires verified TLS, with mTLS where required by the service. Plaintext is a development loopback exception only. Apply the CA distribution and rotation rules in `security-rbac-standard.md` without changing tool semantics.
 - The client should expose typed methods that accept Go/protobuf values, not raw model strings beyond tool argument parsing.
 
 Authentication rules:
